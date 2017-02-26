@@ -4,14 +4,16 @@ extern crate linked_hash_map;
 
 use linked_hash_map::LinkedHashMap;
 
+use std::str::FromStr;
+
 #[derive(Debug, PartialEq)]
 pub struct TableName(String);
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    String(String), // Quote
-    Integer, // Digit
-    Float, // Digit
+    SString(String), // Quote
+    Integer(i64), // Digit
+    Float(f64), // Digit
     Bool(bool), // char
     Datetime, // char
     Array, // Bracket
@@ -24,15 +26,39 @@ impl Value {
     fn from_str(input: &[char]) -> Value {
         use Value::*;
         match input[0] {
-            '"' => String("s".to_string()),
+            '"' => {
+                // TODO: Clever iterator trick with count()?
+                let mut idx = 1;
+                while input[idx] != '"' {
+                    idx += 1;
+                }
+                SString(input[1..idx].iter().map(|c| *c).collect::<String>())
+            }
             't' => Bool(true),
             'f' => Bool(false),
-            // TODO: Use nom for array parsing?
+            // TODO
             '[' => Array,
             // TODO: Subparser inherits main parser
             '{' => InlineTable,
             // TODO: Try parse int => float => datetime
-            '0'...'9' => Integer,
+            '+' | '-' | '0'...'9' => {
+                let mut idx = 0;
+                // TODO: Really need capped integers...
+                while idx != input.len() - 1 && input[idx + 1].is_int_float_char() {
+                    idx += 1;
+                }
+
+                let clean =
+                    input[..idx + 1].iter().filter(|c| **c != '_').map(|c| *c).collect::<String>();
+
+                if let Ok(res) = i64::from_str(&clean) {
+                    return Integer(res);
+                } else if let Ok(res) = f64::from_str(&clean) {
+                    return Float(res);
+                }
+                // TODO: Datetime here
+                panic!("Could not parse to int or float");
+            }
             _ => Datetime,
         }
     }
@@ -88,6 +114,8 @@ pub fn remove_brackets(input: &[char]) -> &[char] {
 pub trait TOMLChar {
     // TODO Add validators for each key/value scheme
     fn is_bare_key_char(&self) -> bool;
+    fn is_ws_or_equal(&self) -> bool;
+    fn is_int_float_char(&self) -> bool;
 }
 
 impl TOMLChar for char {
@@ -97,40 +125,44 @@ impl TOMLChar for char {
             _ => false,
         }
     }
+
+    fn is_ws_or_equal(&self) -> bool {
+        match *self {
+            '=' | ' ' | '\t' => true,
+            _ => false,
+        }
+    }
+
+    fn is_int_float_char(&self) -> bool {
+        match *self {
+            '+' | '-' | '_' | '0'...'9' | 'e' | '.' => true,
+            _ => false,
+        }
+    }
 }
 
 pub fn parse_key_value(input: &[char]) -> KeyValue {
     let mut idx = 0;
 
+    // Seek end of key
     while input[idx].is_bare_key_char() {
         idx += 1;
     }
 
+    // Extract key
     let key = input[0..idx].iter().map(|c| *c).collect::<String>();
 
-    while !input[idx].is_bare_key_char() {
+    // Skip = and whitespace
+    while input[idx].is_ws_or_equal() {
         idx += 1;
     }
 
     let val_start = idx;
-
-    // TODO: idx capped integer?
-    while input[idx].is_bare_key_char() && idx != input.len() - 1 {
-        idx += 1;
-    }
-
-    // This is so the last value char is not truncated when it is the last char of the input.
-    let val_end = if idx == input.len() - 1 {
-        input.len()
-    } else {
-        idx
-    };
-
-    let val = input[val_start..val_end].iter().map(|c| *c).collect::<String>();
+    let val = Value::from_str(&input[val_start..]);
 
     KeyValue {
         key: key,
-        value: Value::String(val),
+        value: val,
         comment: "".to_string(),
     }
 
@@ -190,12 +222,6 @@ fn parse_inner_hard() {
 }
 
 #[test]
-fn name() {
-    let input = r#"\""#;
-    println!("{:?}", input.chars().collect::<Vec<_>>());
-}
-
-#[test]
 fn parse_inner_harder() {
     let input = "section.\"quote \"some\" words\".nested".chars().collect::<Vec<char>>();
     let r = parse_section_title(&input);
@@ -206,7 +232,6 @@ fn parse_inner_harder() {
 #[test]
 fn section_title_to_table_name() {
     let input = r#"[section."pretty.hard".nested]"#.to_string().chars().collect::<Vec<char>>();
-    // println!("{:?}", input);
     let r = section_title_to_subsections(&input);
     assert_eq!([TableName::new("section"),
                 TableName::new("pretty.hard"),
@@ -215,17 +240,71 @@ fn section_title_to_table_name() {
 }
 
 #[test]
-fn keyval_easy() {
+fn keyval_string() {
     // Regular spacing
-    let input = "keyname = valname".chars().collect::<Vec<char>>();
+    let input = "keyname = \"valname\"".chars().collect::<Vec<char>>();
     let correct = KeyValue {
         key: "keyname".to_string(),
-        value: Value::String("valname".to_string()),
+        value: Value::SString("valname".to_string()),
         comment: "".to_string(),
     };
     assert_eq!(correct, parse_key_value(&input));
 
     // Crazy spacing
-    let input = "keyname   =  valname  ".chars().collect::<Vec<char>>();
+    let input = "keyname   =  \"valname\"  ".chars().collect::<Vec<char>>();
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_int() {
+    let input = "keyname = 15".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Integer(15),
+        comment: "".to_string(),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "keyname = 150_263  ".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Integer(150263),
+        comment: "".to_string(),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "keyname = -150_263 ".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Integer(-150263),
+        comment: "".to_string(),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_float() {
+    let input = "keyname = 15.5".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Float(15.5),
+        comment: "".to_string(),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "keyname = -0.01".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Float(-0.01),
+        comment: "".to_string(),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "keyname = -5e+22".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: "keyname".to_string(),
+        value: Value::Float(-5e+22),
+        comment: "".to_string(),
+    };
     assert_eq!(correct, parse_key_value(&input));
 }
