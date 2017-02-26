@@ -1,0 +1,7 @@
+[package]
+name = "Molten"
+version = "0.1.0"
+authors = ["LeopoldArkham <leopold.arkham@gmail.com>"]
+
+[dependencies]
+linked-hash-map = "0.4.1"
