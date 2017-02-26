@@ -86,6 +86,7 @@ pub fn remove_brackets(input: &[char]) -> &[char] {
 
 
 pub trait TOMLChar {
+    // TODO Add validators for each key/value scheme
     fn is_bare_key_char(&self) -> bool;
 }
 
@@ -99,7 +100,6 @@ impl TOMLChar for char {
 }
 
 pub fn parse_key_value(input: &[char]) -> KeyValue {
-    // TODO: replace is_alphanumeric to accomodate underscores
     let mut idx = 0;
 
     while input[idx].is_bare_key_char() {
