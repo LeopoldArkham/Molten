@@ -1,8 +1,8 @@
 #![allow(dead_code, non_snake_case)]
 
-extern crate linked_hash_map;
+// extern crate linked_hash_map;
 
-use linked_hash_map::LinkedHashMap;
+// use linked_hash_map::LinkedHashMap;
 
 use std::str::FromStr;
 
@@ -72,10 +72,16 @@ pub struct Table {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum Key {
+    Bare(String),
+    Quoted(String),
+}
+
+#[derive(Debug, PartialEq)]
 pub struct KeyValue {
-    key: String,
+    key: Key,
     value: Value,
-    comment: String,
+    comment: Option<String>,
 }
 
 
@@ -93,6 +99,7 @@ impl TableName {
 
 pub fn remove_brackets(input: &[char]) -> &[char] {
     // TODO: Allow brackets in quoted names
+    // TODO: Use nom here
     let mut idx = 0;
 
     while input[idx] != '[' {
@@ -141,16 +148,37 @@ impl TOMLChar for char {
     }
 }
 
+pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
+    // Skip "
+    *idx += 1;
+    while input[*idx] != '"' {
+        *idx += 1;
+    }
+    let key = input[1..*idx].iter().map(|c| *c).collect::<String>();
+    // Skip "
+    *idx += 1;
+
+    Key::Quoted(key)
+}
+
+pub fn parse_bare_key(input: &[char], idx: &mut usize) -> Key {
+    while input[*idx].is_bare_key_char() {
+        *idx += 1;
+    }
+
+    let key = input[0..*idx].iter().map(|c| *c).collect::<String>();
+
+    Key::Bare(key)
+
+}
+
 pub fn parse_key_value(input: &[char]) -> KeyValue {
     let mut idx = 0;
 
-    // Seek end of key
-    while input[idx].is_bare_key_char() {
-        idx += 1;
-    }
-
-    // Extract key
-    let key = input[0..idx].iter().map(|c| *c).collect::<String>();
+    let key = match input[0] {
+        '"' => parse_quoted_key(&input, &mut idx),
+        _ => parse_bare_key(&input, &mut idx),
+    };
 
     // Skip = and whitespace
     while input[idx].is_ws_or_equal() {
@@ -163,7 +191,7 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
     KeyValue {
         key: key,
         value: val,
-        comment: "".to_string(),
+        comment: None,
     }
 
 }
@@ -240,18 +268,41 @@ fn section_title_to_table_name() {
 }
 
 #[test]
+fn key_bare() {
+    let input = "bare_key = 15".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Bare("bare_key".to_string()),
+        value: Value::Integer(15),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn key_quoted() {
+    // TODO: Escaped quotes in quoted strings
+    let input = "\"Fancy Quoted K3y\" = 15".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Quoted("Fancy Quoted K3y".to_string()),
+        value: Value::Integer(15),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
 fn keyval_string() {
     // Regular spacing
     let input = "keyname = \"valname\"".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::SString("valname".to_string()),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
     // Crazy spacing
-    let input = "keyname   =  \"valname\"  ".chars().collect::<Vec<char>>();
+    let input = "keyname \t  =  \"valname\"  ".chars().collect::<Vec<char>>();
     assert_eq!(correct, parse_key_value(&input));
 }
 
@@ -259,25 +310,25 @@ fn keyval_string() {
 fn keyval_int() {
     let input = "keyname = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
     let input = "keyname = 150_263  ".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Integer(150263),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
     let input = "keyname = -150_263 ".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Integer(-150263),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 }
@@ -286,25 +337,25 @@ fn keyval_int() {
 fn keyval_float() {
     let input = "keyname = 15.5".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Float(15.5),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
     let input = "keyname = -0.01".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Float(-0.01),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
     let input = "keyname = -5e+22".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        key: "keyname".to_string(),
+        key: Key::Bare("keyname".to_string()),
         value: Value::Float(-5e+22),
-        comment: "".to_string(),
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 }
