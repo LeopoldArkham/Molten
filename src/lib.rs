@@ -1,13 +1,12 @@
 #![allow(dead_code, non_snake_case)]
 
 // extern crate linked_hash_map;
+extern crate chrono;
 
 // use linked_hash_map::LinkedHashMap;
 
 use std::str::FromStr;
-
-#[derive(Debug, PartialEq)]
-pub struct TableName(String);
+use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
@@ -15,7 +14,7 @@ pub enum Value {
     Integer(i64), // Digit
     Float(f64), // Digit
     Bool(bool), // char
-    Datetime, // char
+    DateTime(ChronoDateTime<FixedOffset>), // char
     Array, // Bracket
     InlineTable, // Curly bracket
 }
@@ -34,8 +33,8 @@ impl Value {
                 }
                 SString(input[1..idx].iter().map(|c| *c).collect::<String>())
             }
-            't' => Bool(true),
-            'f' => Bool(false),
+            't' if input[0..4] == ['t', 'r', 'u', 'e'] => Bool(true),
+            'f' if input[0..5] == ['f', 'a', 'l', 's', 'e'] => Bool(false),
             // TODO
             '[' => Array,
             // TODO: Subparser inherits main parser
@@ -44,22 +43,26 @@ impl Value {
             '+' | '-' | '0'...'9' => {
                 let mut idx = 0;
                 // TODO: Really need capped integers...
-                while idx != input.len() - 1 && input[idx + 1].is_int_float_char() {
+                while idx != input.len() - 1 && input[idx + 1].not_whitespace() {
                     idx += 1;
                 }
 
+                // TODO: Filtermap and why **?
                 let clean =
                     input[..idx + 1].iter().filter(|c| **c != '_').map(|c| *c).collect::<String>();
 
+                // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
                     return Integer(res);
                 } else if let Ok(res) = f64::from_str(&clean) {
                     return Float(res);
+                } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
+                    return DateTime(res);
                 }
-                // TODO: Datetime here
-                panic!("Could not parse to int or float");
+
+                panic!("Could not parse to int, float or DateTime");
             }
-            _ => Datetime,
+            _ => panic!("Could not infer type of value being parsed"),
         }
     }
 }
@@ -84,15 +87,6 @@ pub struct KeyValue {
     comment: Option<String>,
 }
 
-
-// TODO: Remove unused
-impl TableName {
-    pub fn new<T: Into<String>>(name: T) -> TableName {
-        TableName(name.into())
-    }
-}
-
-// TODO: Dispatch on value content and parse to appropriate value type
 // TODO: Stateful parser
 // TODO: Result type
 
@@ -109,7 +103,6 @@ pub fn remove_brackets(input: &[char]) -> &[char] {
     idx += 1;
     let start = idx;
 
-
     while input[idx] != ']' {
         idx += 1;
     }
@@ -123,6 +116,7 @@ pub trait TOMLChar {
     fn is_bare_key_char(&self) -> bool;
     fn is_ws_or_equal(&self) -> bool;
     fn is_int_float_char(&self) -> bool;
+    fn not_whitespace(&self) -> bool;
 }
 
 impl TOMLChar for char {
@@ -144,6 +138,13 @@ impl TOMLChar for char {
         match *self {
             '+' | '-' | '_' | '0'...'9' | 'e' | '.' => true,
             _ => false,
+        }
+    }
+
+    fn not_whitespace(&self) -> bool {
+        match *self {
+            ' ' | '\t' => false,
+            _ => true,
         }
     }
 }
@@ -217,10 +218,10 @@ pub fn parse_section_title(input: &[char]) -> Vec<String> {
     names
 }
 
-pub fn section_title_to_subsections(input: &[char]) -> Vec<TableName> {
+pub fn section_title_to_subsections(input: &[char]) -> Vec<String> {
     let inner = remove_brackets(input);
     let names = parse_section_title(inner);
-    names.into_iter().map(TableName).collect()
+    names.into_iter().map(String::from).collect()
 }
 
 #[test]
@@ -261,9 +262,7 @@ fn parse_inner_harder() {
 fn section_title_to_table_name() {
     let input = r#"[section."pretty.hard".nested]"#.to_string().chars().collect::<Vec<char>>();
     let r = section_title_to_subsections(&input);
-    assert_eq!([TableName::new("section"),
-                TableName::new("pretty.hard"),
-                TableName::new("nested")],
+    assert_eq!([String::from("section"), String::from("pretty.hard"), String::from("nested")],
                r.as_slice());
 }
 
@@ -359,3 +358,26 @@ fn keyval_float() {
     };
     assert_eq!(correct, parse_key_value(&input));
 }
+
+// TODO: keyvalue factory
+
+#[test]
+fn keyval_bool() {
+    let input = "keyname = true".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Bare("keyname".to_string()),
+        value: Value::Bool(true),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "keyname = false".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Bare("keyname".to_string()),
+        value: Value::Bool(false),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+// Keyval test structure: 1 simple standalone test + 1 fn with edge cases
