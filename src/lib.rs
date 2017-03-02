@@ -43,6 +43,7 @@ impl Value {
             '+' | '-' | '0'...'9' => {
                 let mut idx = 0;
                 // TODO: Really need capped integers...
+                // TODO: '#' char could be appended with no space!
                 while idx != input.len() - 1 && input[idx + 1].not_whitespace() {
                     idx += 1;
                 }
@@ -375,6 +376,20 @@ fn keyval_bool() {
     let correct = KeyValue {
         key: Key::Bare("keyname".to_string()),
         value: Value::Bool(false),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_datetime() {
+    let input = "SomeDate = 1979-05-27T00:32:00.999999-07:00".chars().collect::<Vec<char>>();
+    // Not the world's most useful comparison
+    let correct = KeyValue {
+        key: Key::Bare("SomeDate".to_string()),
+        value: Value::DateTime(ChronoDateTime::parse_from_rfc3339("1979-05-27T00:32:00.\
+                                                                   999999-07:00")
+            .unwrap()),
         comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
