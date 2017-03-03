@@ -22,35 +22,45 @@ pub enum Value {
 
 impl Value {
     // Todo: rename
-    fn from_str(input: &[char]) -> Value {
+    fn from_str(input: &[char], idx: &mut usize) -> Value {
         use Value::*;
-        match input[0] {
+        // println!("{:#?}", &input[*idx..]);
+        let start_idx = *idx;
+        match input[*idx] {
             '"' => {
                 // TODO: Clever iterator trick with count()?
-                let mut idx = 1;
-                while input[idx] != '"' {
-                    idx += 1;
+                *idx += 1;
+                while input[*idx] != '"' {
+                    *idx += 1;
                 }
-                SString(input[1..idx].iter().map(|c| *c).collect::<String>())
+                SString(input[start_idx + 1..*idx].iter().map(|c| *c).collect::<String>())
             }
-            't' if input[0..4] == ['t', 'r', 'u', 'e'] => Bool(true),
-            'f' if input[0..5] == ['f', 'a', 'l', 's', 'e'] => Bool(false),
+            't' if input[*idx..*idx + 4] == ['t', 'r', 'u', 'e'] => {
+                *idx += 3;
+                Bool(true)
+            }
+            'f' if input[*idx..*idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
+                *idx += 4;
+                Bool(false)
+            }
             // TODO
             '[' => Array,
             // TODO: Subparser inherits main parser
             '{' => InlineTable,
             // TODO: Try parse int => float => datetime
             '+' | '-' | '0'...'9' => {
-                let mut idx = 0;
                 // TODO: Really need capped integers...
-                // TODO: '#' char could be appended with no space!
-                while idx != input.len() - 1 && input[idx + 1].not_whitespace() {
-                    idx += 1;
+                // TODO: '#' char could be appended with no space
+                while *idx != input.len() - 1 && input[*idx + 1].not_whitespace() {
+                    *idx += 1;
                 }
 
                 // TODO: Filtermap and why **?
-                let clean =
-                    input[..idx + 1].iter().filter(|c| **c != '_').map(|c| *c).collect::<String>();
+                let clean = input[start_idx..*idx + 1]
+                    .iter()
+                    .filter(|c| **c != '_')
+                    .map(|c| *c)
+                    .collect::<String>();
 
                 // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
@@ -187,7 +197,10 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
         idx += 1;
     }
 
-    let val = Value::from_str(&input[idx..]);
+    let val = Value::from_str(&input, &mut idx);
+
+    // Assume whitespace before #
+    // let comment =
 
     KeyValue {
         key: key,
