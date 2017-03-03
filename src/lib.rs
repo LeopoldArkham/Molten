@@ -225,6 +225,10 @@ pub fn section_title_to_subsections(input: &[char]) -> Vec<String> {
     names.into_iter().map(String::from).collect()
 }
 
+
+
+// TESTS
+
 #[test]
 fn t_remove_brackets() {
     let input = "[Section]".to_string().chars().collect::<Vec<char>>();
@@ -360,8 +364,6 @@ fn keyval_float() {
     assert_eq!(correct, parse_key_value(&input));
 }
 
-// TODO: keyvalue factory
-
 #[test]
 fn keyval_bool() {
     let input = "keyname = true".chars().collect::<Vec<char>>();
@@ -395,4 +397,5 @@ fn keyval_datetime() {
     assert_eq!(correct, parse_key_value(&input));
 }
 
+// TODO: keyvalue factory
 // Keyval test structure: 1 simple standalone test + 1 fn with edge cases
