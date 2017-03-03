@@ -11,14 +11,17 @@ use chrono::{DateTime as ChronoDateTime, FixedOffset};
 #[derive(Debug, PartialEq)]
 pub enum Value {
     SString(String), // Quote
-    Integer(i64), // Digit
-    Float(f64), // Digit
+    Integer(i64), // Digit, +, -
+    Float(f64), // Digit, +, -
     Bool(bool), // char
-    DateTime(ChronoDateTime<FixedOffset>), // char
+    DateTime(ChronoDateTime<FixedOffset>), // Digit
     Array, // Bracket
     InlineTable, // Curly bracket
 }
 
+// Next up:
+// Awareness of indentation and ws before comments in keyval parsing
+// Keyval to str Display implementation
 
 impl Value {
     // Todo: rename
@@ -51,7 +54,7 @@ impl Value {
             '+' | '-' | '0'...'9' => {
                 // TODO: Really need capped integers...
                 // TODO: '#' char could be appended with no space
-                while *idx != input.len() - 1 && input[*idx + 1].not_whitespace() {
+                while *idx != input.len() - 1 && input[*idx + 1].not_whitespace_or_pound() {
                     *idx += 1;
                 }
 
@@ -128,6 +131,7 @@ pub trait TOMLChar {
     fn is_ws_or_equal(&self) -> bool;
     fn is_int_float_char(&self) -> bool;
     fn not_whitespace(&self) -> bool;
+    fn not_whitespace_or_pound(&self) -> bool;
 }
 
 impl TOMLChar for char {
@@ -158,6 +162,13 @@ impl TOMLChar for char {
             _ => true,
         }
     }
+
+    fn not_whitespace_or_pound(&self) -> bool {
+        match *self {
+            ' ' | '\t' | '#' => false,
+            _ => true,
+        }
+    }
 }
 
 pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
@@ -184,6 +195,18 @@ pub fn parse_bare_key(input: &[char], idx: &mut usize) -> Key {
 
 }
 
+fn parse_comment(input: &[char], idx: &mut usize) -> Option<String> {
+    loop {
+        if input[*idx] == '#' {
+            return Some(input[*idx + 1..].iter().map(|c| *c).collect::<String>());
+        }
+        if *idx == input.len() - 1 {
+            return None;
+        }
+        *idx += 1;
+    }
+}
+
 pub fn parse_key_value(input: &[char]) -> KeyValue {
     let mut idx = 0;
 
@@ -200,12 +223,12 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
     let val = Value::from_str(&input, &mut idx);
 
     // Assume whitespace before #
-    // let comment =
+    let comment = parse_comment(&input, &mut idx);
 
     KeyValue {
         key: key,
         value: val,
-        comment: None,
+        comment: comment,
     }
 
 }
@@ -405,6 +428,28 @@ fn keyval_datetime() {
                                                                    999999-07:00")
             .unwrap()),
         comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_with_comment() {
+    let input = "keyname = 15 # This is a comment".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Bare("keyname".to_string()),
+        value: Value::Integer(15),
+        comment: Some(String::from(" This is a comment")),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_with_comment_no_space() {
+    let input = "keyname = 15#This is a comment".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        key: Key::Bare("keyname".to_string()),
+        value: Value::Integer(15),
+        comment: Some(String::from("This is a comment")),
     };
     assert_eq!(correct, parse_key_value(&input));
 }
