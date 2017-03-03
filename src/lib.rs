@@ -187,8 +187,7 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
         idx += 1;
     }
 
-    let val_start = idx;
-    let val = Value::from_str(&input[val_start..]);
+    let val = Value::from_str(&input[idx..]);
 
     KeyValue {
         key: key,
