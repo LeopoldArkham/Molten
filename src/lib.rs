@@ -96,6 +96,7 @@ pub enum Key {
 
 #[derive(Debug, PartialEq)]
 pub struct KeyValue {
+    indent: String,
     key: Key,
     value: Value,
     comment: Option<String>,
@@ -175,10 +176,13 @@ impl TOMLChar for char {
 pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
     // Skip "
     *idx += 1;
+    let start_idx = *idx;
+
     while input[*idx] != '"' {
         *idx += 1;
     }
-    let key = input[1..*idx].iter().map(|c| *c).collect::<String>();
+
+    let key = input[start_idx..*idx].iter().map(|c| *c).collect::<String>();
     // Skip "
     *idx += 1;
 
@@ -186,11 +190,13 @@ pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
 }
 
 pub fn parse_bare_key(input: &[char], idx: &mut usize) -> Key {
+    let start_idx = *idx;
+    
     while input[*idx].is_bare_key_char() {
         *idx += 1;
     }
 
-    let key = input[0..*idx].iter().map(|c| *c).collect::<String>();
+    let key = input[start_idx..*idx].iter().map(|c| *c).collect::<String>();
 
     Key::Bare(key)
 
@@ -211,7 +217,13 @@ fn parse_comment(input: &[char], idx: &mut usize) -> Option<String> {
 pub fn parse_key_value(input: &[char]) -> KeyValue {
     let mut idx = 0;
 
-    let key = match input[0] {
+    while input[idx].is_whitespace() {
+        idx += 1;
+    }
+
+    let indent = input[..idx].iter().map(|c| *c).collect::<String>();
+
+    let key = match input[idx] {
         '"' => parse_quoted_key(&input, &mut idx),
         _ => parse_bare_key(&input, &mut idx),
     };
@@ -227,6 +239,7 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
     let comment = parse_comment(&input, &mut idx);
 
     KeyValue {
+        indent: indent,
         key: key,
         value: val,
         comment: comment,
@@ -311,6 +324,7 @@ fn section_title_to_table_name() {
 fn key_bare() {
     let input = "bare_key = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),        
         key: Key::Bare("bare_key".to_string()),
         value: Value::Integer(15),
         comment: None,
@@ -323,6 +337,7 @@ fn key_quoted() {
     // TODO: Escaped quotes in quoted strings
     let input = "\"Fancy Quoted K3y\" = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),        
         key: Key::Quoted("Fancy Quoted K3y".to_string()),
         value: Value::Integer(15),
         comment: None,
@@ -335,6 +350,7 @@ fn keyval_string() {
     // Regular spacing
     let input = "keyname = \"valname\"".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::SString("valname".to_string()),
         comment: None,
@@ -350,6 +366,7 @@ fn keyval_string() {
 fn keyval_int() {
     let input = "keyname = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
         comment: None,
@@ -358,6 +375,7 @@ fn keyval_int() {
 
     let input = "keyname = 150_263  ".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(150263),
         comment: None,
@@ -366,6 +384,7 @@ fn keyval_int() {
 
     let input = "keyname = -150_263 ".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(-150263),
         comment: None,
@@ -377,6 +396,7 @@ fn keyval_int() {
 fn keyval_float() {
     let input = "keyname = 15.5".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Float(15.5),
         comment: None,
@@ -385,6 +405,7 @@ fn keyval_float() {
 
     let input = "keyname = -0.01".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Float(-0.01),
         comment: None,
@@ -393,6 +414,7 @@ fn keyval_float() {
 
     let input = "keyname = -5e+22".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Float(-5e+22),
         comment: None,
@@ -404,6 +426,7 @@ fn keyval_float() {
 fn keyval_bool() {
     let input = "keyname = true".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Bool(true),
         comment: None,
@@ -412,6 +435,7 @@ fn keyval_bool() {
 
     let input = "keyname = false".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Bool(false),
         comment: None,
@@ -424,6 +448,7 @@ fn keyval_datetime() {
     let input = "SomeDate = 1979-05-27T00:32:00.999999-07:00".chars().collect::<Vec<char>>();
     // Not the world's most useful comparison
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("SomeDate".to_string()),
         value: Value::DateTime(ChronoDateTime::parse_from_rfc3339("1979-05-27T00:32:00.\
                                                                    999999-07:00")
@@ -437,6 +462,7 @@ fn keyval_datetime() {
 fn keyval_with_comment() {
     let input = "keyname = 15 # This is a comment".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
         comment: Some(String::from(" This is a comment")),
@@ -448,9 +474,32 @@ fn keyval_with_comment() {
 fn keyval_with_comment_no_space() {
     let input = "keyname = 15#This is a comment".chars().collect::<Vec<char>>();
     let correct = KeyValue {
+        indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
         comment: Some(String::from("This is a comment")),
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+// TODO: Finish this
+fn indent_keyval() {
+    let input = "\t\tindent = \"Two tabs\"".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        indent: "\t\t".to_string(),
+        key: Key::Bare("indent".to_string()),
+        value: Value::SString("Two tabs".to_string()),
+        comment: None
+    };
+    assert_eq!(correct, parse_key_value(&input));
+
+    let input = "      indent = \"Two tabs\"".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        indent: "      ".to_string(),
+        key: Key::Bare("indent".to_string()),
+        value: Value::SString("Two tabs".to_string()),
+        comment: None
     };
     assert_eq!(correct, parse_key_value(&input));
 }
