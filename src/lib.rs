@@ -31,7 +31,6 @@ impl Value {
     // Todo: rename
     fn from_str(input: &[char], idx: &mut usize) -> Value {
         use Value::*;
-        // println!("{:#?}", &input[*idx..]);
         let start_idx = *idx;
         match input[*idx] {
             '"' => {
