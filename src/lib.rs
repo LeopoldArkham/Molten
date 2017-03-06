@@ -24,8 +24,8 @@ pub enum Value {
 }
 
 // Next up:
-// Awareness of indentation and ws before comments in keyval parsing
-// Keyval to str Display implementation
+// Switch keyval repr to ast-like structure for full ws awareness
+// Keyval to str Display implementation -- After ^
 
 impl Value {
     // Todo: rename
@@ -97,12 +97,29 @@ pub enum Key {
     Quoted(String),
 }
 
+impl Key {
+    // Useful?
+    fn bare<T: Into<String>>(name: T) -> Key {
+        Key::Bare(name.into())
+    }
+
+    fn quoted<T: Into<String>>(name: T) -> Key {
+        Key::Quoted(name.into())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Comment {
+    indent: String,
+    comment: String,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct KeyValue {
     indent: String,
     key: Key,
     value: Value,
-    comment: Option<String>,
+    comment: Option<Comment>,
 }
 
 // TODO: Stateful parser
@@ -146,7 +163,7 @@ pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
 
 pub fn parse_bare_key(input: &[char], idx: &mut usize) -> Key {
     let start_idx = *idx;
-    
+
     while input[*idx].is_bare_key_char() {
         *idx += 1;
     }
@@ -157,10 +174,21 @@ pub fn parse_bare_key(input: &[char], idx: &mut usize) -> Key {
 
 }
 
-fn parse_comment(input: &[char], idx: &mut usize) -> Option<String> {
+fn parse_comment(input: &[char], idx: &mut usize) -> Option<Comment> {
+    let start_idx = *idx;
     loop {
         if input[*idx] == '#' {
-            return Some(input[*idx + 1..].iter().map(|c| *c).collect::<String>());
+            let indent = if start_idx == *idx {
+                "".to_string()
+            } else {
+                input[start_idx..*idx].iter().map(|c| *c).collect::<String>()
+            };
+
+            let comment = input[*idx + 1..].iter().map(|c| *c).collect::<String>();
+            return Some(Comment {
+                indent: indent,
+                comment: comment,
+            });
         }
         if *idx == input.len() - 1 {
             return None;
@@ -190,8 +218,12 @@ pub fn parse_key_value(input: &[char]) -> KeyValue {
 
     let val = Value::from_str(&input, &mut idx);
 
-    // Assume whitespace before #
-    let comment = parse_comment(&input, &mut idx);
+    let comment = if idx == input.len() - 1 {
+        None
+    } else {
+        idx += 1;
+        parse_comment(&input, &mut idx)
+    };
 
     KeyValue {
         indent: indent,
@@ -279,7 +311,7 @@ fn section_title_to_table_name() {
 fn key_bare() {
     let input = "bare_key = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        indent: "".to_string(),        
+        indent: "".to_string(),
         key: Key::Bare("bare_key".to_string()),
         value: Value::Integer(15),
         comment: None,
@@ -292,7 +324,7 @@ fn key_quoted() {
     // TODO: Escaped quotes in quoted strings
     let input = "\"Fancy Quoted K3y\" = 15".chars().collect::<Vec<char>>();
     let correct = KeyValue {
-        indent: "".to_string(),        
+        indent: "".to_string(),
         key: Key::Quoted("Fancy Quoted K3y".to_string()),
         value: Value::Integer(15),
         comment: None,
@@ -420,7 +452,10 @@ fn keyval_with_comment() {
         indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
-        comment: Some(String::from(" This is a comment")),
+        comment: Some(Comment {
+            indent: " ".to_string(),
+            comment: " This is a comment".to_string(),
+        }),
     };
     assert_eq!(correct, parse_key_value(&input));
 }
@@ -432,7 +467,10 @@ fn keyval_with_comment_no_space() {
         indent: "".to_string(),
         key: Key::Bare("keyname".to_string()),
         value: Value::Integer(15),
-        comment: Some(String::from("This is a comment")),
+        comment: Some(Comment {
+            indent: "".to_string(),
+            comment: "This is a comment".to_string(),
+        }),
     };
     assert_eq!(correct, parse_key_value(&input));
 }
@@ -445,7 +483,7 @@ fn indent_keyval() {
         indent: "\t\t".to_string(),
         key: Key::Bare("indent".to_string()),
         value: Value::SString("Two tabs".to_string()),
-        comment: None
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 
@@ -454,7 +492,7 @@ fn indent_keyval() {
         indent: "      ".to_string(),
         key: Key::Bare("indent".to_string()),
         value: Value::SString("Two tabs".to_string()),
-        comment: None
+        comment: None,
     };
     assert_eq!(correct, parse_key_value(&input));
 }
