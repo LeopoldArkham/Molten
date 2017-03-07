@@ -19,13 +19,14 @@ pub enum Value {
     Float(f64), // Digit, +, -
     Bool(bool), // char
     DateTime(ChronoDateTime<FixedOffset>), // Digit
-    Array, // Bracket
+    Array(Vec<Value>), // Bracket
     InlineTable, // Curly bracket
 }
 
 // Next up:
 // Switch keyval repr to ast-like structure for full ws awareness
 // Keyval to str Display implementation -- After ^
+// Delimiter matching engine. Until then, assume unambiguous delmiters.
 
 impl Value {
     // Todo: rename
@@ -50,14 +51,36 @@ impl Value {
                 Bool(false)
             }
             // TODO
-            '[' => Array,
+            '[' => {
+                // Stagger ws /\ value
+                // Map parsing to values
+                // Assert homogeneity
+                // Zip() ws /\ parsed values
+
+                // Subtype: Value | WS Enum | Comment iff EOL
+
+                let mut elems: Vec<Value> = Vec::new();
+                *idx += 1;
+
+                while input[*idx] != ']' {
+                    while input[*idx].is_ws() || input[*idx] == ',' {
+                        *idx += 1;
+                    }
+
+                    let val = Value::from_str(&input, idx);
+                    *idx += 1;
+                    elems.push(val);
+                }
+                Array(elems)
+            }
             // TODO: Subparser inherits main parser
             '{' => InlineTable,
             // TODO: Try parse int => float => datetime
             '+' | '-' | '0'...'9' => {
                 // TODO: Really need capped integers...
                 // TODO: '#' char could be appended with no space
-                while *idx != input.len() - 1 && input[*idx + 1].not_whitespace_or_pound() {
+                while *idx != input.len() - 1 && input[*idx + 1].not_whitespace_or_pound() &&
+                      input[*idx + 1] != ',' && input[*idx + 1] != ']'{
                     *idx += 1;
                 }
 
@@ -446,6 +469,56 @@ fn keyval_datetime() {
 }
 
 #[test]
+fn keyval_array_int() {
+    let input = "my_array = [1, 2, 3]".chars().collect::<Vec<char>>();
+    // Not the world's most useful comparison
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("my_array".to_string()),
+        value: Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_array_bool() {
+    let input = "my_array = [true, false, true]".chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("my_array".to_string()),
+        value: Value::Array(vec![Value::Bool(true), Value::Bool(false), Value::Bool(true)]),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_array_string() {
+    let input = r#"my_array = ["test", "test", "test"]"#.chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("my_array".to_string()),
+        value: Value::Array(vec![Value::SString("test".to_string()), Value::SString("test".to_string()), Value::SString("test".to_string())]),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
+fn keyval_array_array() {
+    let input = r#"my_array = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]"#.chars().collect::<Vec<char>>();
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("my_array".to_string()),
+        value: Value::Array(vec![Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]), Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]), Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])]),
+        comment: None,
+    };
+    println!("{:?}", correct);
+    assert_eq!(correct, parse_key_value(&input));
+}
+
+#[test]
 fn keyval_with_comment() {
     let input = "keyname = 15 # This is a comment".chars().collect::<Vec<char>>();
     let correct = KeyValue {
@@ -476,7 +549,6 @@ fn keyval_with_comment_no_space() {
 }
 
 #[test]
-// TODO: Finish this
 fn indent_keyval() {
     let input = "\t\tindent = \"Two tabs\"".chars().collect::<Vec<char>>();
     let correct = KeyValue {
