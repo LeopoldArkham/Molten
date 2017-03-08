@@ -84,7 +84,6 @@ impl Value {
                         *idx += 1;
                     }
                     let val = parse_key_value(input, idx);
-                    // *idx += 1;
                     elems.push(val);
                 }
 
@@ -674,12 +673,14 @@ fn keyval_inline_table_string() {
         value: Value::SString("c".to_string()),
         comment: None
     };
+
     let correct = KeyValue {
         indent: "".to_string(),
         key: Key::Bare("inline".to_string()),
         value: Value::InlineTable(vec![a, b, c]),
         comment: None,
     };
+
     assert_eq!(correct, parse_key_value(&input, &mut idx));
 }
 
