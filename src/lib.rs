@@ -84,7 +84,7 @@ impl Value {
                         *idx += 1;
                     }
                     let val = parse_key_value(input, idx);
-                    *idx += 1;
+                    // *idx += 1;
                     elems.push(val);
                 }
 
@@ -94,8 +94,10 @@ impl Value {
             '+' | '-' | '0'...'9' => {
                 // TODO: Really need capped integers...
                 // TODO: '#' char could be appended with no space
+
+                // Send help.
                 while *idx != input.len() - 1 && input[*idx + 1].not_whitespace_or_pound() &&
-                      input[*idx + 1] != ',' && input[*idx + 1] != ']' {
+                      input[*idx + 1] != ',' && input[*idx + 1] != ']' && input[*idx + 1] != '}' {
                     *idx += 1;
                 }
 
@@ -216,6 +218,7 @@ fn parse_comment(input: &[char], idx: &mut usize) -> Option<Comment> {
     let start_idx = *idx;
     loop {
         if input[*idx] == '#' {
+            // TODO: Simplify
             let indent = if start_idx == *idx {
                 "".to_string()
             } else {
@@ -229,6 +232,7 @@ fn parse_comment(input: &[char], idx: &mut usize) -> Option<Comment> {
             });
         }
         if *idx == input.len() - 1 {
+            *idx = start_idx; 
             return None;
         }
         *idx += 1;
@@ -236,12 +240,12 @@ fn parse_comment(input: &[char], idx: &mut usize) -> Option<Comment> {
 }
 
 pub fn parse_key_value(input: &[char], idx: &mut usize) -> KeyValue {
-
+    let start_idx = *idx;
     while input[*idx].is_whitespace() {
         *idx += 1;
     }
 
-    let indent = input[..*idx].iter().cloned().collect::<String>();
+    let indent = input[start_idx..*idx].iter().cloned().collect::<String>();
 
     let key = match input[*idx] {
         '"' => parse_quoted_key(input, idx),
@@ -606,6 +610,74 @@ fn indent_keyval() {
         indent: "      ".to_string(),
         key: Key::Bare("indent".to_string()),
         value: Value::SString("Two tabs".to_string()),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input, &mut idx));
+}
+
+#[test]
+fn keyval_inline_table() {
+    let input = "inline = {a = 1, b = 2, c = 3}".chars().collect::<Vec<char>>();
+    let mut idx = 0;
+
+    let a = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("a".to_string()),
+        value: Value::Integer(1),
+        comment: None
+    };
+
+    let b = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("b".to_string()),
+        value: Value::Integer(2),
+        comment: None
+    };
+
+    let c = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("c".to_string()),
+        value: Value::Integer(3),
+        comment: None
+    };
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("inline".to_string()),
+        value: Value::InlineTable(vec![a, b, c]),
+        comment: None,
+    };
+    assert_eq!(correct, parse_key_value(&input, &mut idx));
+}
+
+#[test]
+fn keyval_inline_table_string() {
+    let input = "inline = {a = \"a\", b=\"b\", c = \"c\"}".chars().collect::<Vec<char>>();
+    let mut idx = 0;
+
+    let a = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("a".to_string()),
+        value: Value::SString("a".to_string()),
+        comment: None
+    };
+
+    let b = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("b".to_string()),
+        value: Value::SString("b".to_string()),
+        comment: None
+    };
+
+    let c = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("c".to_string()),
+        value: Value::SString("c".to_string()),
+        comment: None
+    };
+    let correct = KeyValue {
+        indent: "".to_string(),
+        key: Key::Bare("inline".to_string()),
+        value: Value::InlineTable(vec![a, b, c]),
         comment: None,
     };
     assert_eq!(correct, parse_key_value(&input, &mut idx));
