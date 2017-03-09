@@ -71,6 +71,7 @@ impl Value {
                     let val = Value::from_str(input, idx);
                     *idx += 1;
                     elems.push(val);
+                    assert_eq!(elems[0].as_usize(), val.as_usize());
                 }
                 Array(elems)
             }
@@ -119,6 +120,19 @@ impl Value {
                 panic!("Could not parse to int, float or DateTime");
             }
             _ => panic!("Could not infer type of value being parsed"),
+        }
+    }
+
+    fn as_usize(&self) -> usize {
+        match *self {
+            Value::SString(_) => 1  as usize,
+            Value::Integer(_) => 2 as usize,
+            Value::Float(_) => 3 as usize,
+            Value::Bool(_) => 4 as usize,
+            Value::DateTime(_) => 5 as usize,
+            Value::Array(_) => 6 as usize,
+            Value::InlineTable(_) => 7 as usize,
+
         }
     }
 }
