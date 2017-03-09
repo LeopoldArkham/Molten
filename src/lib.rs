@@ -70,8 +70,9 @@ impl Value {
                     }
                     let val = Value::from_str(input, idx);
                     *idx += 1;
+                    let check = val.as_usize();
                     elems.push(val);
-                    assert_eq!(elems[0].as_usize(), val.as_usize());
+                    assert_eq!(elems[0].as_usize(), check);
                 }
                 Array(elems)
             }
