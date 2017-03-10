@@ -28,6 +28,8 @@ pub enum Value {
 // Keyval to str Display implementation -- After ^
 // Delimiter matching engine. Until then, assume unambiguous delmiters.
 
+// Allow for describing error conditions when advancing tape
+
 impl Value {
     // Todo: rename
     fn from_str(input: &[char], idx: &mut usize) -> Value {
@@ -76,7 +78,6 @@ impl Value {
                 }
                 Array(elems)
             }
-            // TODO: Subparser inherits main parser
             '{' => {
                 let mut elems: Vec<KeyValue> = Vec::new();
                 *idx += 1;
@@ -286,7 +287,6 @@ pub fn parse_key_value(input: &[char], idx: &mut usize) -> KeyValue {
         value: val,
         comment: comment,
     }
-
 }
 
 pub fn parse_section_title(input: &[char]) -> Vec<String> {
