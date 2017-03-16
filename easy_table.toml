@@ -1,0 +1,4 @@
+[test]
+myInt = 5
+myString = "Hello"
+myBool = false

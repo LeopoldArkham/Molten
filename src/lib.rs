@@ -50,12 +50,6 @@ impl Value {
             }
             // TODO
             '[' => {
-                // Stagger ws /\ value
-                // Map parsing to values
-                // Assert homogeneity
-                // Zip() ws /\ parsed values
-
-                // Subtype: Value | WS Enum | Comment iff EOL
                 let mut elems: Vec<Value> = Vec::new();
                 *idx += 1;
 
@@ -135,7 +129,7 @@ impl Value {
 
 #[derive(Debug, PartialEq)]
 pub struct Table {
-    name: String,
+    name: Vec<String>,
     comment: String,
     values: Vec<KeyValue>,
 }
@@ -171,27 +165,20 @@ pub struct KeyValue {
     comment: Option<Comment>,
 }
 
-// TODO: Stateful parser
-// TODO: Result type
-
-
-pub fn remove_brackets(input: &[char]) -> &[char] {
+pub fn remove_brackets<'a>(input: &'a [char], idx: &mut usize) -> &'a [char] {
     // TODO: Allow brackets in quoted names
-    // TODO: Use nom here
-    let mut idx = 0;
-
-    while input[idx] != '[' {
-        idx += 1;
+    while input[*idx] != '[' {
+        *idx += 1;
     }
 
-    idx += 1;
-    let start = idx;
+    *idx += 1;
+    let start = *idx;
 
-    while input[idx] != ']' {
-        idx += 1;
+    while input[*idx] != ']' {
+        *idx += 1;
     }
 
-    &input[start..idx]
+    &input[start..*idx]
 }
 
 pub fn parse_quoted_key(input: &[char], idx: &mut usize) -> Key {
@@ -304,22 +291,69 @@ pub fn parse_section_title(input: &[char]) -> Vec<String> {
     names
 }
 
-pub fn section_title_to_subsections(input: &[char]) -> Vec<String> {
-    let inner = remove_brackets(input);
+// TODO: Better names everywhere
+pub fn section_title_to_subsections(input: &[char], idx: &mut usize) -> Vec<String> {
+    let inner = remove_brackets(input, idx);
     let names = parse_section_title(inner);
     names.into_iter().map(String::from).collect()
 }
 
+pub fn parse_table(input: &[char], idx: &mut usize) -> Table {
+    let title = section_title_to_subsections(input, idx);
+    let comment = "".to_string();
+    let mut values = Vec::new();
+
+    while *idx < input.len() - 1 {
+        while *idx != input.len() - 1 && input[*idx] != '\n' {
+            *idx += 1;
+        }
+        *idx += 1;
+
+        let val = parse_key_value(&input, idx);
+        values.push(val)
+    }
+
+    // TODO: name || Title
+    Table {name: title,
+    comment: "".to_string(),
+    values: values}
+
+}
+
+
 // TESTS
 
 #[test]
+fn table_easy() {
+    let input = include_str!("../easy_table.toml");
+    let correct = Table{name: vec!["test".to_string()],
+    comment: "".to_string(),
+    values: vec![
+        KeyValue{indent: "".to_string(),
+                 key: Key::Bare("myInt".to_string()),
+                 value: Value::Integer(5),
+                 comment: None},
+        KeyValue{indent: "".to_string(),
+                 key: Key::Bare("myString".to_string()),
+                 value: Value::SString("Hello".to_string()),
+                 comment: None},
+        KeyValue{indent: "".to_string(),
+                 key: Key::Bare("myBool".to_string()),
+                 value: Value::Bool(false),
+                 comment: None},
+    ]};
+}
+
+#[test]
 fn t_remove_brackets() {
+    let mut idx = 0;
     let input = "[Section]".to_string().chars().collect::<Vec<char>>();
-    let r = remove_brackets(&input).iter().map(|c| *c).collect::<String>();
+    let r = remove_brackets(&input, &mut idx).iter().map(|c| *c).collect::<String>();
     assert_eq!("Section", &r);
 
+    idx = 0;
     let input = "[section.nested]".to_string().chars().collect::<Vec<char>>();
-    let r = remove_brackets(&input).iter().map(|c| *c).collect::<String>();
+    let r = remove_brackets(&input, &mut idx).iter().map(|c| *c).collect::<String>();
     assert_eq!("section.nested", &r);
 }
 
@@ -348,8 +382,9 @@ fn parse_inner_harder() {
 
 #[test]
 fn section_title_to_table_name() {
+    let mut idx = 0; 
     let input = r#"[section."pretty.hard".nested]"#.to_string().chars().collect::<Vec<char>>();
-    let r = section_title_to_subsections(&input);
+    let r = section_title_to_subsections(&input, &mut idx);
     assert_eq!([String::from("section"), String::from("pretty.hard"), String::from("nested")],
                r.as_slice());
 }
