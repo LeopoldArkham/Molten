@@ -23,13 +23,6 @@ pub enum Value {
     InlineTable(Vec<KeyValue>), // Curly bracket
 }
 
-// Next up:
-// Switch keyval repr to ast-like structure for full ws awareness
-// Keyval to str Display implementation -- After ^
-// Delimiter matching engine. Until then, assume unambiguous delmiters.
-
-// Allow for describing error conditions when advancing tape
-
 impl Value {
     // Todo: rename
     fn from_str(input: &[char], idx: &mut usize) -> Value {
