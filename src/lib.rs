@@ -99,7 +99,8 @@ impl Value {
 
                 // Send help.
                 while *idx != input.len() - 1 && input[*idx + 1].not_whitespace_or_pound() &&
-                      input[*idx + 1] != ',' && input[*idx + 1] != ']' && input[*idx + 1] != '}' {
+                      input[*idx + 1] != ',' && input[*idx + 1] != ']' &&
+                      input[*idx + 1] != '}' {
                     *idx += 1;
                 }
 
@@ -127,7 +128,7 @@ impl Value {
 
     fn as_usize(&self) -> usize {
         match *self {
-            Value::SString(_) => 1  as usize,
+            Value::SString(_) => 1 as usize,
             Value::Integer(_) => 2 as usize,
             Value::Float(_) => 3 as usize,
             Value::Bool(_) => 4 as usize,
@@ -247,7 +248,7 @@ fn parse_comment(input: &[char], idx: &mut usize) -> Option<Comment> {
             });
         }
         if *idx == input.len() - 1 {
-            *idx = start_idx; 
+            *idx = start_idx;
             return None;
         }
         *idx += 1;
@@ -638,21 +639,21 @@ fn keyval_inline_table() {
         indent: "".to_string(),
         key: Key::Bare("a".to_string()),
         value: Value::Integer(1),
-        comment: None
+        comment: None,
     };
 
     let b = KeyValue {
         indent: "".to_string(),
         key: Key::Bare("b".to_string()),
         value: Value::Integer(2),
-        comment: None
+        comment: None,
     };
 
     let c = KeyValue {
         indent: "".to_string(),
         key: Key::Bare("c".to_string()),
         value: Value::Integer(3),
-        comment: None
+        comment: None,
     };
     let correct = KeyValue {
         indent: "".to_string(),
@@ -672,21 +673,21 @@ fn keyval_inline_table_string() {
         indent: "".to_string(),
         key: Key::Bare("a".to_string()),
         value: Value::SString("a".to_string()),
-        comment: None
+        comment: None,
     };
 
     let b = KeyValue {
         indent: "".to_string(),
         key: Key::Bare("b".to_string()),
         value: Value::SString("b".to_string()),
-        comment: None
+        comment: None,
     };
 
     let c = KeyValue {
         indent: "".to_string(),
         key: Key::Bare("c".to_string()),
         value: Value::SString("c".to_string()),
-        comment: None
+        comment: None,
     };
 
     let correct = KeyValue {
