@@ -23,6 +23,17 @@ pub enum Value {
     InlineTable(Vec<KeyValue>), // Curly bracket
 }
 
+
+// TODO: All string types
+// TODO: Stateful parser
+// - Internal index
+// - mark() function
+// - mark-to-idx function
+// TODO: Move to cow
+// TODO: Separate tests
+// TODO: Eat whitespace
+
+
 impl Value {
     // Todo: rename
     fn from_str(input: &[char], idx: &mut usize) -> Value {
@@ -48,7 +59,6 @@ impl Value {
                 *idx += 4;
                 Bool(false)
             }
-            // TODO
             '[' => {
                 let mut elems: Vec<Value> = Vec::new();
                 *idx += 1;
