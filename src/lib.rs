@@ -1,13 +1,13 @@
 #![allow(dead_code, non_snake_case)]
 
-// extern crate linked_hash_map;
+extern crate linked_hash_map;
 extern crate chrono;
 
 mod tomlchar;
 
 use std::str::FromStr;
 
-// use linked_hash_map::LinkedHashMap;
+use linked_hash_map::LinkedHashMap;
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
 use tomlchar::TOMLChar;
@@ -21,6 +21,8 @@ pub enum Value {
     DateTime(ChronoDateTime<FixedOffset>), // Digit
     Array(Vec<Value>), // Bracket
     InlineTable(Vec<KeyValue>), // Curly bracket
+    Table(Table),
+    WS(String),
 }
 
 
@@ -32,6 +34,54 @@ pub enum Value {
 // TODO: Move to cow
 // TODO: Separate tests
 // TODO: Eat whitespace
+// TODO: Debug view of idx positions
+// TODO: Add logging
+
+
+pub struct Parser {
+    src: Vec<char>,
+    idx: usize,
+    marker: usize,
+}
+
+pub struct TOMLDocument(LinkedHashMap<String, Value>);
+
+impl Parser {
+    /// Create a new parser from a string.
+    pub fn new(input: &str) -> Parser {
+        Parser {
+            src: input.chars().collect::<Vec<char>>(),
+            idx: 0,
+            marker: 0,
+        }
+    }
+
+    fn mark(&mut self) {
+        self.marker = self.idx;
+    }
+
+    /// Parses the input into a TOMLDocument
+    pub fn parse(&mut self) -> TOMLDocument {
+        TOMLDocument(LinkedHashMap::new())
+    }
+
+    /// Advances the parser to the first non-whitespce character
+    /// and returns the consumed whitespace as a string.
+    pub fn take_ws(&mut self) -> String {
+        self.mark();
+        while self.src[self.idx].is_ws() {
+            self.idx += 1;
+        }
+        self.src[self.marker..self.idx].iter().collect::<String>()
+    }
+
+    /// Dispatches the parser based on the current character.
+    /// Unaware of context; needs to be called from a place that
+    /// knows where to route the returned Value.
+    pub fn dispatch(&mut self) -> Value {
+        
+    }
+}
 
 
 impl Value {
@@ -117,12 +167,14 @@ impl Value {
                     return DateTime(res);
                 }
 
+                println!("working on: {:?}", clean);
                 panic!("Could not parse to int, float or DateTime");
             }
             _ => panic!("Could not infer type of value being parsed"),
         }
     }
 
+    // TODO: usize required here?
     fn as_usize(&self) -> usize {
         match *self {
             Value::SString(_) => 1 as usize,
@@ -132,7 +184,8 @@ impl Value {
             Value::DateTime(_) => 5 as usize,
             Value::Array(_) => 6 as usize,
             Value::InlineTable(_) => 7 as usize,
-
+            Value::Table(_) => 8 as usize,
+            Value::WS(_) => 9 as usize,
         }
     }
 }
@@ -310,7 +363,6 @@ pub fn section_title_to_subsections(input: &[char], idx: &mut usize) -> Vec<Stri
 
 pub fn parse_table(input: &[char], idx: &mut usize) -> Table {
     let title = section_title_to_subsections(input, idx);
-    let comment = "".to_string();
     let mut values = Vec::new();
 
     while *idx < input.len() - 1 {
@@ -324,9 +376,11 @@ pub fn parse_table(input: &[char], idx: &mut usize) -> Table {
     }
 
     // TODO: name || Title
-    Table {name: title,
-    comment: "".to_string(),
-    values: values}
+    Table {
+        name: title,
+        comment: "".to_string(),
+        values: values,
+    }
 
 }
 
@@ -336,9 +390,12 @@ pub fn parse_table(input: &[char], idx: &mut usize) -> Table {
 #[test]
 fn table_easy() {
     let input = include_str!("../easy_table.toml");
-    let correct = Table{name: vec!["test".to_string()],
-    comment: "".to_string(),
-    values: vec![
+    let input = input.to_string().chars().collect::<Vec<char>>();
+    let mut idx = 0;
+    let correct = Table {
+        name: vec!["test".to_string()],
+        comment: "".to_string(),
+        values: vec![
         KeyValue{indent: "".to_string(),
                  key: Key::Bare("myInt".to_string()),
                  value: Value::Integer(5),
@@ -351,7 +408,10 @@ fn table_easy() {
                  key: Key::Bare("myBool".to_string()),
                  value: Value::Bool(false),
                  comment: None},
-    ]};
+    ],
+    };
+
+    assert_eq!(correct, parse_table(&input, &mut idx));
 }
 
 #[test]
@@ -392,7 +452,7 @@ fn parse_inner_harder() {
 
 #[test]
 fn section_title_to_table_name() {
-    let mut idx = 0; 
+    let mut idx = 0;
     let input = r#"[section."pretty.hard".nested]"#.to_string().chars().collect::<Vec<char>>();
     let r = section_title_to_subsections(&input, &mut idx);
     assert_eq!([String::from("section"), String::from("pretty.hard"), String::from("nested")],

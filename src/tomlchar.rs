@@ -33,7 +33,7 @@ impl TOMLChar for char {
 
     fn is_ws(&self) -> bool {
         match *self {
-            ' ' | '\t' => true,
+            ' ' | '\t' | '\r' | '\n' => true,
             _ => false,
         }
     }
@@ -44,7 +44,7 @@ impl TOMLChar for char {
 
     fn not_whitespace_or_pound(&self) -> bool {
         match *self {
-            ' ' | '\t' | '#' => false,
+            ' ' | '\t' | '\n' | '\r' | '#' => false,
             _ => true,
         }
     }

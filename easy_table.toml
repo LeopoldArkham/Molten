@@ -1,4 +1,4 @@
-[test]
+[test] # This is a table
 myInt = 5
 myString = "Hello"
 myBool = false
