@@ -19,17 +19,18 @@ pub enum Value {
 impl Value {
     // TODO: usize required here?
     pub fn discriminant(&self) -> usize {
+        use Value::*;
         match *self {
             // TODO: use self::...
-            Value::SString(_) => 1 as usize,
-            Value::Integer(_) => 2 as usize,
-            Value::Float(_) => 3 as usize,
-            Value::Bool(_) => 4 as usize,
-            Value::DateTime(_) => 5 as usize,
-            Value::Array(_) => 6 as usize,
-            Value::InlineTable(_) => 7 as usize,
-            Value::Table(_) => 8 as usize,
-            Value::WS(_) => 9 as usize,
+            SString(_) => 1 as usize,
+            Integer(_) => 2 as usize,
+            Float(_) => 3 as usize,
+            Bool(_) => 4 as usize,
+            DateTime(_) => 5 as usize,
+            Array(_) => 6 as usize,
+            InlineTable(_) => 7 as usize,
+            Table(_) => 8 as usize,
+            WS(_) => 9 as usize,
         }
     }
 }

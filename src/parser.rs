@@ -16,6 +16,15 @@ pub enum TLV {
     Val(KeyValue),
 }
 
+impl TLV {
+    pub fn as_string(&self) -> String {
+        match *self {
+            TLV::WS(s) => s,
+            TLV::Val(kv) => kv.as_string(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser {
     src: Vec<char>,

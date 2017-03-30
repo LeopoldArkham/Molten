@@ -21,12 +21,13 @@ use parser::Parser;
 // - Internal index
 // - mark() function
 // - mark-to-idx function
-// TODO: Move to cow
+// TODO: Move to cow and check for implicit string copies
 // TODO: Separate tests
 // TODO: Eat whitespace
 // TODO: Debug view of idx positions
 // TODO: Add logging //<- ?
-
+// TODO: Clean/Dirty
+// TODO: Add capacity ofr all string allocations
 
 #[test]
 fn toml_test_1() {
@@ -59,12 +60,25 @@ impl Key {
     fn quoted<T: Into<String>>(name: T) -> Key {
         Key::Quoted(name.into())
     }
+
+    pub fn as_string(&self) -> String {
+        match *self {
+            Key::Bare(s) => s,
+            Key::Quoted(s) => s,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Comment {
     indent: String,
     comment: String,
+}
+
+impl Comment {
+    pub fn as_string(&self) -> String {
+        self.indent + &self.comment
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -74,6 +88,21 @@ pub struct KeyValue {
     value: Value,
     comment: Option<Comment>,
 }
+
+impl KeyValue {
+    pub fn as_string(&self) -> String {
+        let mut buf = String::new();
+        buf.push_str(&self.indent);
+        buf.push_str(&self.key.as_string());
+        buf.push_str(&self.value.as_string());
+        if let Some(_comment) = self.comment {
+            buf.push_str(&self._comment.as_string());
+        }
+        buf
+    }
+}
+
+
 // TESTS
 
 // #[test]
