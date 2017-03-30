@@ -8,8 +8,6 @@ mod tomldoc;
 mod parser;
 mod value;
 
-
-
 use std::str::FromStr;
 
 use linked_hash_map::LinkedHashMap;
@@ -27,7 +25,7 @@ use parser::Parser;
 // TODO: Separate tests
 // TODO: Eat whitespace
 // TODO: Debug view of idx positions
-// TODO: Add logging
+// TODO: Add logging //<- ?
 
 
 #[test]
@@ -36,7 +34,7 @@ fn toml_test_1() {
     let mut parser = Parser::new(input);
 
     let res = parser.parse();
-    println!("{:?}", res);
+    
 }
 
 #[derive(Debug, PartialEq)]
