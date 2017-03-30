@@ -20,6 +20,7 @@ impl Value {
     // TODO: usize required here?
     pub fn discriminant(&self) -> usize {
         match *self {
+            // TODO: use self::...
             Value::SString(_) => 1 as usize,
             Value::Integer(_) => 2 as usize,
             Value::Float(_) => 3 as usize,
