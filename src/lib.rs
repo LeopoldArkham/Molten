@@ -35,9 +35,11 @@ fn toml_test_1() {
     let mut parser = Parser::new(input);
 
     let res = parser.parse();
-    
+    println!("{}", res.as_string());
+    assert_eq!(input, &res.as_string());
 }
 
+// TODO: Unify comment representation
 #[derive(Debug, PartialEq)]
 pub struct Table {
     name: Vec<String>,
@@ -63,8 +65,8 @@ impl Key {
 
     pub fn as_string(&self) -> String {
         match *self {
-            Key::Bare(s) => s,
-            Key::Quoted(s) => s,
+            Key::Bare(ref s) => s.clone(),
+            Key::Quoted(ref s) => s.clone(),
         }
     }
 }
@@ -77,7 +79,7 @@ pub struct Comment {
 
 impl Comment {
     pub fn as_string(&self) -> String {
-        self.indent + &self.comment
+        format!("{}{}", self.indent, self.comment)
     }
 }
 
@@ -94,9 +96,10 @@ impl KeyValue {
         let mut buf = String::new();
         buf.push_str(&self.indent);
         buf.push_str(&self.key.as_string());
+        buf.push_str(" = ");
         buf.push_str(&self.value.as_string());
-        if let Some(_comment) = self.comment {
-            buf.push_str(&self._comment.as_string());
+        if let Some(ref _comment) = self.comment {
+            buf.push_str(&_comment.as_string());
         }
         buf
     }

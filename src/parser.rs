@@ -19,8 +19,8 @@ pub enum TLV {
 impl TLV {
     pub fn as_string(&self) -> String {
         match *self {
-            TLV::WS(s) => s,
-            TLV::Val(kv) => kv.as_string(),
+            TLV::WS(ref s) => s.clone(),
+            TLV::Val(ref kv) => kv.as_string(),
         }
     }
 }

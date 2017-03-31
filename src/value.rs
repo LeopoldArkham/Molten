@@ -33,4 +33,47 @@ impl Value {
             WS(_) => 9 as usize,
         }
     }
+
+    pub fn as_string(&self) -> String {
+        use Value::*;
+        match *self {
+            SString(ref s) => format!(r#""{}""#, s),
+            Integer(ref num) => format!("{}", num),
+            Float(ref num) => format!("{}", num),
+            Bool(ref b) => format!("{}", b),
+            DateTime(ref dt) => format!("{}", dt),
+            Array(ref vec) => {
+                let mut buf = String::new();
+                for val in vec {
+                    buf.push_str(&val.as_string());
+                    buf.push_str(", ");
+                }
+                buf
+            }
+            InlineTable(ref vec) =>{
+                let mut buf = String::new();
+                for kv in vec {
+                    buf.push_str(&kv.as_string());
+                    buf.push_str(", ");
+                }
+                buf
+            }
+            Table(ref table) => {
+                // TODO: Chain names and comment here
+                let mut name = table.name.iter()
+                                     .fold(String::new(), |mut acc, n| {
+                                         acc.push_str(&n);
+                                         acc });
+
+                let mut body = String::new();
+                for val in &table.values {
+                    body.push_str(&val.as_string());
+                    body.push_str("\n");
+                }
+                format!("[{}] {}\n{}", name,table.comment,  body)
+            
+            }
+            WS(ref ws) => ws.clone(),
+        }
+    }
 }
