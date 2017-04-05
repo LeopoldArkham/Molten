@@ -6,3 +6,4 @@ authors = ["LeopoldArkham <leopold.arkham@gmail.com>"]
 [dependencies]
 linked-hash-map = "0.4.1"
 chrono = "0.3.0"
+pretty_assertions = "0.1.2"

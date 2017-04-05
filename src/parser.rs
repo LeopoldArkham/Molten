@@ -47,16 +47,22 @@ impl Parser {
         self.marker = self.idx;
     }
 
+    /// Returns the character currently pointed to by `self.idx`.
+    fn current(&self) -> char {
+        self.src[self.idx]
+    }
+
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
         
         let leading_ws = self.take_ws();
         body.push(leading_ws);
-        // TODO: Toplevel enum
-        let nextval = self.parse_key_value();
-        let wrapper = TLV::Val(nextval);
-        body.push(wrapper);
+        while self.idx != self.src.len() - 1 {
+            let nextval = self.parse_key_value();
+            let wrapper = TLV::Val(nextval);
+            body.push(wrapper);
+        }
 
         TOMLDocument(body)
     }
@@ -67,6 +73,10 @@ impl Parser {
         self.mark();
         while self.src[self.idx].is_ws() {
             self.idx += 1;
+            if self.src[self.idx] == '\n' {
+                self.idx += 1;
+                break;
+            }
         }
         
         TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
@@ -74,6 +84,7 @@ impl Parser {
 
     /// Parses and returns a key/value pair.
     pub fn parse_key_value(&mut self) -> KeyValue {
+        // This should happen sat the begining of a line
         self.mark();
         while self.src[self.idx].is_whitespace() {
             self.idx += 1;
@@ -91,13 +102,51 @@ impl Parser {
             self.idx += 1;
         }
 
+        // Parse value
         let val = self.parse_val();
 
-        let comment = if self.idx == self.src.len() - 1 {
-            None
-        } else {
+        // Parse comment
+        if self.idx != self.src.len() - 1 {
             self.idx += 1;
-            self.parse_comment()
+        } else {
+            return KeyValue {
+                indent: indent,
+                key: key,
+                value: val,
+                comment: None,
+                trail: "".to_string(),
+            };
+        }
+        self.mark();
+        while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' && self.current() != '\n' {
+            self.idx += 1;
+        }
+
+        let (comment, trailing) = match self.current() {
+            '#' => {
+                self.idx = self.marker;
+                let (c, t) = self.parse_comment();
+                (Some(c), t)
+            }
+            '\r' => {
+                if self.src[self.idx + 1] == '\n' {
+                    self.idx += 2;
+                    // TODO: Check for out of bounds
+                    let t = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+                    (None, t)
+                } else {
+                    panic!("Invalid newline pattern");
+                }
+            }
+            '\n' => {
+                let t = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
+                (None, t)
+            }
+            // This must mean we reached EOF
+            _ => {
+                let t = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
+                (None, t)
+            }
         };
 
         KeyValue {
@@ -105,6 +154,7 @@ impl Parser {
             key: key,
             value: val,
             comment: comment,
+            trail: trailing,
         }
     }
 
@@ -182,6 +232,7 @@ impl Parser {
                     .collect::<String>();
 
                 // Ask forgiveness, not permission
+                println!("Num parsing ok");
                 if let Ok(res) = i64::from_str(&clean) {
                     return Integer(res);
                 } else if let Ok(res) = f64::from_str(&clean) {
@@ -197,29 +248,42 @@ impl Parser {
         }
     }
 
-    fn parse_comment(&mut self) -> Option<Comment> {
+    /// Attempts to parse a comment at the current position, and returns it along with
+    /// the newline character. Only call this function if the presence of the pound sign is guaranteed.
+    fn parse_comment(&mut self) -> (Comment, String) {
         self.mark();
-        loop {
-            if self.src[self.idx] == '#' {
-                // TODO: Simplify
-                let indent = if self.marker == self.idx {
-                    "".to_string()
-                } else {
-                    self.src[self.marker..self.idx].iter().cloned().collect::<String>()
-                };
-
-                let comment = self.src[self.idx + 1..].iter().cloned().collect::<String>();
-                return Some(Comment {
-                    indent: indent,
-                    comment: comment,
-                });
-            }
-            if self.idx == self.src.len() - 1 {
-                self.idx = self.marker;
-                return None;
-            }
+        
+        // Find this comment's indentation w.r.t. the last non-ws character.
+        while self.current() != '#' {
             self.idx += 1;
         }
+        let indent = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        
+        // Skip #
+        self.idx += 1;
+        self.mark();
+
+        // The comment itself
+        while self.current() != '\r' && self.current() != '\n' {
+            self.idx += 1;
+        }
+        let comment = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+
+        self.mark();
+        let trailing = match self.current() {
+            '\r' => {
+                self.idx += 2;
+                "\r\n".to_string()
+            }
+            '\n' => {
+                self.idx += 1;
+                "\n".to_string()
+            }
+            _ => unreachable!()
+        };
+
+        (Comment{indent: indent, comment:comment}, trailing)
+
     }
 
     pub fn remove_brackets<'a>(&mut self) -> String {
@@ -262,8 +326,6 @@ impl Parser {
         let key = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
         Key::Bare(key)
     }
-
-
 
     pub fn parse_section_title(&mut self) -> Vec<String> {
         // TODO: Escaped quotes in quoted table names

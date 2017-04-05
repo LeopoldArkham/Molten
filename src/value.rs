@@ -44,10 +44,14 @@ impl Value {
             DateTime(ref dt) => format!("{}", dt),
             Array(ref vec) => {
                 let mut buf = String::new();
-                for val in vec {
+                buf.push_str("[");
+                for (i, val) in vec.iter().enumerate() {
                     buf.push_str(&val.as_string());
-                    buf.push_str(", ");
+                    if i != vec.len() - 1 {
+                        buf.push_str(", ");
+                    }
                 }
+                buf.push_str("]");
                 buf
             }
             InlineTable(ref vec) =>{

@@ -1,5 +1,7 @@
-#![allow(dead_code, non_snake_case)]
+#![allow(dead_code, non_snake_case, unused_imports, unused_variables, unused_mut)]
 
+#[macro_use]
+extern crate pretty_assertions;
 extern crate linked_hash_map;
 extern crate chrono;
 
@@ -17,25 +19,20 @@ use value::Value;
 use parser::Parser;
 
 // TODO: All string types
-// TODO: Stateful parser
-// - Internal index
-// - mark() function
-// - mark-to-idx function
 // TODO: Move to cow and check for implicit string copies
 // TODO: Separate tests
-// TODO: Eat whitespace
 // TODO: Debug view of idx positions
 // TODO: Add logging //<- ?
 // TODO: Clean/Dirty
-// TODO: Add capacity ofr all string allocations
+// TODO: Add capacity for all string allocations
 
 #[test]
 fn toml_test_1() {
-    let input = include_str!("../toml_1.txt");
+    let input = include_str!("../toml_1.toml");
     let mut parser = Parser::new(input);
 
     let res = parser.parse();
-    println!("{}", res.as_string());
+    println!("{:?}", res.0);
     assert_eq!(input, &res.as_string());
 }
 
@@ -79,7 +76,7 @@ pub struct Comment {
 
 impl Comment {
     pub fn as_string(&self) -> String {
-        format!("{}{}", self.indent, self.comment)
+        format!("{}#{}", self.indent, self.comment)
     }
 }
 
@@ -89,6 +86,7 @@ pub struct KeyValue {
     key: Key,
     value: Value,
     comment: Option<Comment>,
+    trail: String
 }
 
 impl KeyValue {
@@ -101,6 +99,7 @@ impl KeyValue {
         if let Some(ref _comment) = self.comment {
             buf.push_str(&_comment.as_string());
         }
+        buf.push_str(&self.trail);
         buf
     }
 }
