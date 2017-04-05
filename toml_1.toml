@@ -1,0 +1,5 @@
+
+    Hello = "world"
+    value = 5
+array = [true, true, false] # A cool array
+bool = true
