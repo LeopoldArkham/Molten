@@ -238,7 +238,7 @@ impl Parser {
                 } else if let Ok(res) = f64::from_str(&clean) {
                     return Float(res);
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
-                    return DateTime(res);
+                    return DateTime((res, clean));
                 }
 
                 println!("working on: {:?}", clean);

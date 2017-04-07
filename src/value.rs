@@ -9,7 +9,7 @@ pub enum Value {
     Integer(i64), // Digit, +, -
     Float(f64), // Digit, +, -
     Bool(bool), // char
-    DateTime(ChronoDateTime<FixedOffset>), // Digit
+    DateTime((ChronoDateTime<FixedOffset>, String)), // Digit
     Array(Vec<Value>), // Bracket
     InlineTable(Vec<KeyValue>), // Curly bracket
     Table(Table),
@@ -41,7 +41,7 @@ impl Value {
             Integer(ref num) => format!("{}", num),
             Float(ref num) => format!("{}", num),
             Bool(ref b) => format!("{}", b),
-            DateTime(ref dt) => format!("{}", dt),
+            DateTime((dt, ref s)) => s.clone(),
             Array(ref vec) => {
                 let mut buf = String::new();
                 buf.push_str("[");
