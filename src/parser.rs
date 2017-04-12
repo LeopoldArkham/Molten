@@ -14,6 +14,7 @@ use std::str::FromStr;
 pub enum TLV {
     WS(String),
     Val(KeyValue),
+    Table(Table),
 }
 
 impl TLV {
@@ -21,6 +22,7 @@ impl TLV {
         match *self {
             TLV::WS(ref s) => s.clone(),
             TLV::Val(ref kv) => kv.as_string(),
+            TLV::Table(ref t) => t.as_string(),
         }
     }
 }
@@ -30,7 +32,10 @@ pub struct Parser {
     src: Vec<char>,
     idx: usize,
     marker: usize,
+    end: usize,
 }
+
+/// Scan WS until ANY CHAR
 
 impl Parser {
     /// Create a new parser from a string.
@@ -39,12 +44,17 @@ impl Parser {
             src: input.chars().collect::<Vec<char>>(),
             idx: 0,
             marker: 0,
+            end: input.len() - 1 as usize,
         }
     }
 
     /// Moves the marker to the index's current position
     fn mark(&mut self) {
         self.marker = self.idx;
+    }
+
+    fn mark_at(&mut self, idx: usize) {
+        self.marker = idx;
     }
 
     /// Returns the character currently pointed to by `self.idx`.
@@ -56,12 +66,26 @@ impl Parser {
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
         
+        // Take leading whitespace
         let leading_ws = self.take_ws();
         body.push(leading_ws);
-        while self.idx != self.src.len() - 1 {
+        
+        // Take all keyvals outside on tables
+        while self.idx != self.end {
+            // Break out when a table is found
+            if self.current() == '[' {
+                break;
+            }
+            // Take and wrap one KV pair
             let nextval = self.parse_key_value();
             let wrapper = TLV::Val(nextval);
             body.push(wrapper);
+        }
+
+        // Switch to parsing tables. This should be a state machine.
+        while self.idx != self.end {
+            let next = self.parse_table();
+            body.push(next);
         }
 
         TOMLDocument(body)
@@ -71,7 +95,7 @@ impl Parser {
     /// and returns the consumed whitespace as a string.
     pub fn take_ws(&mut self) -> TLV {
         self.mark();
-        while self.src[self.idx].is_ws() {
+        while self.current().is_ws() {
             self.idx += 1;
             if self.src[self.idx] == '\n' {
                 self.idx += 1;
@@ -80,6 +104,12 @@ impl Parser {
         }
         
         TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
+    }
+
+    pub fn skip_ws(&mut self) {
+        while self.current().is_ws() {
+            self.idx += 1;
+        }
     }
 
     /// Parses and returns a key/value pair.
@@ -225,14 +255,13 @@ impl Parser {
                 }
 
                 // TODO: Filtermap and why **?
-                let clean = self.src[self.marker..self.idx + 1]
+                let clean: String = self.src[self.marker..self.idx + 1]
                     .iter()
                     .filter(|c| **c != '_')
                     .cloned()
                     .collect::<String>();
 
                 // Ask forgiveness, not permission
-                println!("Num parsing ok");
                 if let Ok(res) = i64::from_str(&clean) {
                     return Integer(res);
                 } else if let Ok(res) = f64::from_str(&clean) {
@@ -355,26 +384,41 @@ impl Parser {
         names.into_iter().map(String::from).collect()
     }
 
-    pub fn parse_table(&mut self) -> Table {
-        let title = self.section_title_to_subsections();
-        let mut values = Vec::new();
-
-        while self.idx < self.src.len() - 1 {
-            while self.idx != self.src.len() - 1 && self.src[self.idx] != '\n' {
-                self.idx += 1;
-            }
+    pub fn parse_table(&mut self) -> TLV {
+        // Parser lands on '[' character, skip it.
+        self.idx += 1;
+        self.mark();
+        
+        // Seek the end of the table's name
+        while self.current() != ']' { // TODO: Quoted names
             self.idx += 1;
+        }
+        // Get the name
+        let name = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        
+        // FRAGILE: Seek start of next line
+        while self.current() != '\n' {
+            self.idx += 1;
+        }
+        self.idx += 1;
 
-            let val = self.parse_key_value();
-            values.push(val)
+        let mut values = Vec::new();
+        loop {
+            if self.idx == self.end {
+                break;
+            }
+
+            match self.current() {
+                '[' => break,
+                _ => values.push(self.parse_key_value()), 
+            }
         }
 
-        // TODO: name || Title
-        Table {
-            name: title,
+        TLV::Table(Table {
+            name: vec![name],
             comment: "".to_string(),
             values: values,
-        }
+        })
 
     }
 }

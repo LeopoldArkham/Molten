@@ -1,10 +1,11 @@
 
     Hello = "world"
     value = 5
-array = [true, true, false] # A cool array
+array = [true, true, false] # Array
 bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
-neg = -59
 
-[test]
-a = 5
+neg = -59
+[table]
+    hello = "world"
+    this = "works"

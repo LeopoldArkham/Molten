@@ -11,6 +11,8 @@ mod parser;
 mod value;
 
 use std::str::FromStr;
+use std::fs::File;
+use std::io::prelude::*;
 
 use linked_hash_map::LinkedHashMap;
 
@@ -30,9 +32,12 @@ use parser::Parser;
 fn toml_test_1() {
     let input = include_str!("../toml_1.toml");
     let mut parser = Parser::new(input);
-
     let res = parser.parse();
-    println!("{:?}", res.0);
+
+    let mut f = File::create("tomlres.toml").unwrap();
+    let _ = f.write(res.as_string().as_bytes());
+
+    // println!("{:?}", res.0);
     assert_eq!(input, &res.as_string());
 }
 
@@ -42,6 +47,26 @@ pub struct Table {
     name: Vec<String>,
     comment: String,
     values: Vec<KeyValue>,
+}
+
+impl Table {
+    pub fn as_string(&self) -> String {
+        let mut buf = String::new();
+        buf.push_str("[");
+        let name = self.name.iter().fold(String::new(), |mut acc, ref e| {
+            acc.push_str(e);
+            return acc;}
+            );
+        // FIXME: Relying on format!() to add newline which the struct 
+        // should be aware of. Comments haven't been touched.
+        // Reuse logic from keyval comment parsing.
+        buf.push_str(&format!("{}]\r\n", name));
+
+        for v in &self.values {
+            buf.push_str(&v.as_string());
+        }
+        buf
+    }
 }
 
 #[derive(Debug, PartialEq)]
