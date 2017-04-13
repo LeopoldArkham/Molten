@@ -77,7 +77,6 @@ impl Value {
                     body.push_str("\n");
                 }
                 format!("[{}] {}\n{}", name, table.comment, body)
-
             }
             WS(ref ws) => ws.clone(),
         }
