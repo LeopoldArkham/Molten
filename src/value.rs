@@ -13,7 +13,6 @@ pub enum Value {
     Array(Vec<Value>), // Bracket
     InlineTable(Vec<KeyValue>), // Curly bracket
     Table(Table),
-    WS(String),
 }
 
 impl Value {
@@ -30,7 +29,6 @@ impl Value {
             Array(_) => 6 as usize,
             InlineTable(_) => 7 as usize,
             Table(_) => 8 as usize,
-            WS(_) => 9 as usize,
         }
     }
 
@@ -64,7 +62,7 @@ impl Value {
             }
             Table(ref table) => {
                 // TODO: Chain names and comment here
-                let mut name = table.name
+                let name = table.name
                     .iter()
                     .fold(String::new(), |mut acc, n| {
                         acc.push_str(&n);
@@ -78,7 +76,6 @@ impl Value {
                 }
                 format!("[{}] {}\n{}", name, table.comment, body)
             }
-            WS(ref ws) => ws.clone(),
         }
     }
 }

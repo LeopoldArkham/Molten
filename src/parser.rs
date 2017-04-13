@@ -77,9 +77,7 @@ impl Parser {
                 break;
             }
             // Take and wrap one KV pair
-            let nextval = self.parse_key_value();
-            let wrapper = TLV::Val(nextval);
-            body.push(wrapper);
+            body.push(self.parse_TLV());
         }
 
         // Switch to parsing tables. This should be a state machine.
@@ -89,6 +87,23 @@ impl Parser {
         }
 
         TOMLDocument(body)
+    }
+
+    pub fn parse_TLV(&mut self) -> TLV {
+        self.mark();
+        loop {
+            match self.current() {
+                '\n' => {
+                    self.idx += 1;
+                    return TLV::WS(self.src[self.marker..self.idx].iter().cloned().collect::<String>());
+                }
+                ' ' | '\t' | '\r' => self.idx += 1,
+                _ => {
+                    self.idx = self.marker;
+                    return TLV::Val(self.parse_key_value());
+                }
+            }
+        }
     }
 
     /// Advances the parser to the first non-whitespce character
@@ -104,12 +119,6 @@ impl Parser {
         }
 
         TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
-    }
-
-    pub fn skip_ws(&mut self) {
-        while self.current().is_ws() {
-            self.idx += 1;
-        }
     }
 
     /// Parses and returns a key/value pair.

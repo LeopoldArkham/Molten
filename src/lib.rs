@@ -1,4 +1,4 @@
-#![allow(dead_code, non_snake_case, unused_imports, unused_variables, unused_mut)]
+#![allow(dead_code, non_snake_case, unused_imports, unused_variables)]
 
 #[macro_use]
 extern crate pretty_assertions;
@@ -37,7 +37,7 @@ fn toml_test_1() {
     let mut f = File::create("tomlres.toml").unwrap();
     let _ = f.write(res.as_string().as_bytes());
 
-    // println!("{:?}", res.0);
+    println!("{:#?}", res.0);
     assert_eq!(input, &res.as_string());
 }
 
