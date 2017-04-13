@@ -55,9 +55,9 @@ impl Table {
         buf.push_str("[");
         let name = self.name.iter().fold(String::new(), |mut acc, ref e| {
             acc.push_str(e);
-            return acc;}
-            );
-        // FIXME: Relying on format!() to add newline which the struct 
+            return acc;
+        });
+        // FIXME: Relying on format!() to add newline which the struct
         // should be aware of. Comments haven't been touched.
         // Reuse logic from keyval comment parsing.
         buf.push_str(&format!("{}]\r\n", name));
@@ -111,7 +111,7 @@ pub struct KeyValue {
     key: Key,
     value: Value,
     comment: Option<Comment>,
-    trail: String
+    trail: String,
 }
 
 impl KeyValue {

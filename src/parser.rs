@@ -65,11 +65,11 @@ impl Parser {
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
-        
+
         // Take leading whitespace
         let leading_ws = self.take_ws();
         body.push(leading_ws);
-        
+
         // Take all keyvals outside on tables
         while self.idx != self.end {
             // Break out when a table is found
@@ -102,7 +102,7 @@ impl Parser {
                 break;
             }
         }
-        
+
         TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
     }
 
@@ -148,7 +148,8 @@ impl Parser {
             };
         }
         self.mark();
-        while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' && self.current() != '\n' {
+        while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
+              self.current() != '\n' {
             self.idx += 1;
         }
 
@@ -169,12 +170,12 @@ impl Parser {
                 }
             }
             '\n' => {
-                let t = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
+                let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
                 (None, t)
             }
             // This must mean we reached EOF
             _ => {
-                let t = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
+                let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
                 (None, t)
             }
         };
@@ -248,8 +249,10 @@ impl Parser {
                 // TODO: '#' char could be appended with no space
 
                 // Send help.
-                while self.idx != self.src.len() - 1 && self.src[self.idx + 1].not_whitespace_or_pound() &&
-                      self.src[self.idx + 1] != ',' && self.src[self.idx + 1] != ']' &&
+                while self.idx != self.src.len() - 1 &&
+                      self.src[self.idx + 1].not_whitespace_or_pound() &&
+                      self.src[self.idx + 1] != ',' &&
+                      self.src[self.idx + 1] != ']' &&
                       self.src[self.idx + 1] != '}' {
                     self.idx += 1;
                 }
@@ -278,16 +281,17 @@ impl Parser {
     }
 
     /// Attempts to parse a comment at the current position, and returns it along with
-    /// the newline character. Only call this function if the presence of the pound sign is guaranteed.
+    /// the newline character. Only call this function if the presence of the pound sign
+    //  is guaranteed.
     fn parse_comment(&mut self) -> (Comment, String) {
         self.mark();
-        
+
         // Find this comment's indentation w.r.t. the last non-ws character.
         while self.current() != '#' {
             self.idx += 1;
         }
         let indent = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
-        
+
         // Skip #
         self.idx += 1;
         self.mark();
@@ -308,10 +312,14 @@ impl Parser {
                 self.idx += 1;
                 "\n".to_string()
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         };
 
-        (Comment{indent: indent, comment:comment}, trailing)
+        (Comment {
+            indent: indent,
+            comment: comment,
+        },
+         trailing)
 
     }
 
@@ -388,14 +396,15 @@ impl Parser {
         // Parser lands on '[' character, skip it.
         self.idx += 1;
         self.mark();
-        
+
         // Seek the end of the table's name
-        while self.current() != ']' { // TODO: Quoted names
+        while self.current() != ']' {
+            // TODO: Quoted names
             self.idx += 1;
         }
         // Get the name
         let name = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
-        
+
         // FRAGILE: Seek start of next line
         while self.current() != '\n' {
             self.idx += 1;
@@ -410,7 +419,7 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
-                _ => values.push(self.parse_key_value()), 
+                _ => values.push(self.parse_key_value()),
             }
         }
 
