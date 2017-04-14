@@ -46,7 +46,7 @@ fn toml_test_1() {
 pub struct Table {
     name: Vec<String>,
     comment: String,
-    values: Vec<KeyValue>,
+    values: Vec<parser::TLV>,
 }
 
 impl Table {

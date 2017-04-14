@@ -10,3 +10,11 @@ neg = -59
 [table]
     hello = "world"
     this = "works"
+    does = "this?"
+
+
+    long = "shot"
+
+[second.table]
+true = false
+list = ["Oh", "my", "God!"]

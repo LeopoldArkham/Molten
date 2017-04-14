@@ -10,7 +10,7 @@ use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TLV {
     WS(String),
     Val(KeyValue),
@@ -428,7 +428,7 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
-                _ => values.push(self.parse_key_value()),
+                _ => values.push(self.parse_TLV()),
             }
         }
 
