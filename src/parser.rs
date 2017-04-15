@@ -35,8 +35,6 @@ pub struct Parser {
     end: usize,
 }
 
-/// Scan WS until ANY CHAR
-
 impl Parser {
     /// Create a new parser from a string.
     pub fn new(input: &str) -> Parser {

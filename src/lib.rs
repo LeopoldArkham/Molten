@@ -21,11 +21,12 @@ use value::Value;
 use parser::Parser;
 
 // TODO: All string types
+// TODO: Replace TLV mess with generic trait objects over flat 'item' space.
+// -> 
 // TODO: Move to cow and check for implicit string copies
-// TODO: Separate tests
-// TODO: Debug view of idx positions
-// TODO: Add logging //<- ?
-// TODO: Clean/Dirty
+// TODO: Better, separate test infrastructure
+// TODO: Debug view &|| logging
+// TODO: Decide on Clean/Dirty strategy. Disposition: Against
 // TODO: Add capacity for all string allocations
 
 #[test]
