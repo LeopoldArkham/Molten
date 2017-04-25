@@ -4,6 +4,11 @@
 array = [true, true, false] # Array
 bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
+multi = """Lorem ipsum /
+           dolor sit /
+           amet./
+           """
+
 neg = -59
 
 

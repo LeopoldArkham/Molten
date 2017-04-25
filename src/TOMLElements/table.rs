@@ -1,8 +1,10 @@
+use parser::TLV;
+
 #[derive(Debug, PartialEq)]
 pub struct Table {
-    name: Vec<String>,
-    comment: String,
-    values: Vec<parser::TLV>,
+    pub name: Vec<String>,
+    pub comment: String,
+    pub values: Vec<TLV>,
 }
 
 impl Table {

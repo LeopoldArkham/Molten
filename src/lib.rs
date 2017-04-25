@@ -8,7 +8,7 @@ extern crate chrono;
 mod tomlchar;
 mod tomldoc;
 mod parser;
-mod value;
+mod TOMLElements;
 
 use std::str::FromStr;
 use std::fs::File;
@@ -16,9 +16,7 @@ use std::io::prelude::*;
 
 use linked_hash_map::LinkedHashMap;
 
-use tomlchar::TOMLChar;
-use value::Value;
-use parser::Parser;
+
 
 // TODO: All string types
 // TODO: Replace TLV mess with generic trait objects over flat 'item' space.
@@ -26,13 +24,11 @@ use parser::Parser;
 // TODO: Move to cow and check for implicit string copies
 // TODO: Better, separate test infrastructure
 // TODO: Debug view &|| logging
-// TODO: Decide on Clean/Dirty strategy. Disposition: Against
-// TODO: Add capacity for all string allocations
 
 #[test]
 fn toml_test_1() {
     let input = include_str!("../toml_1.toml");
-    let mut parser = Parser::new(input);
+    let mut parser = parser::Parser::new(input);
     let res = parser.parse();
 
     let mut f = File::create("tomlres.toml").unwrap();

@@ -1,10 +1,14 @@
+use super::Value;
+use super::Comment;
+use super::Key;
+
 #[derive(Debug, PartialEq)]
 pub struct KeyValue {
-    indent: String,
-    key: Key,
-    value: Value,
-    comment: Option<Comment>,
-    trail: String,
+    pub indent: String,
+    pub key: Key,
+    pub value: Value,
+    pub comment: Option<Comment>,
+    pub trail: String,
 }
 
 impl KeyValue {

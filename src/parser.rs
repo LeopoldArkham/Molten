@@ -1,10 +1,6 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
-use Comment;
-use value::Value;
-use Table;
-use KeyValue;
-use Key;
+use TOMLElements::*;
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
@@ -46,11 +42,12 @@ impl Parser {
         }
     }
 
-    /// Moves the marker to the index's current position
+    ///Sets the marker to the index's current position
     fn mark(&mut self) {
         self.marker = self.idx;
     }
 
+    /// Sets the marker to the specified position
     fn mark_at(&mut self, idx: usize) {
         self.marker = idx;
     }
@@ -61,6 +58,7 @@ impl Parser {
     }
 
     /// Parses the input into a TOMLDocument
+    /// CLEANUP
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
 
@@ -198,9 +196,41 @@ impl Parser {
 
     /// Attempts to parse a value at the current position.
     pub fn parse_val(&mut self) -> Value {
-        use Value::*;
+        use self::Value::*;
         self.mark();
         match self.src[self.idx] {
+            '"' if (self.src[self.idx+1] == '"' && self.src[self.idx+2] == '"') => {
+                // skip """
+                self.idx += 3;
+                let mut lstart = self.idx;
+                let mut actual = String::new();
+
+                while self.src[self.idx..self.idx+3] != ['"', '"', '"'] {
+                    println!("{:?}", self.src[self.idx..self.idx+3].iter().cloned().collect::<Vec<char>>());
+                    match self.current() {
+                        '/' if self.src[self.idx+1] == '\r' || self.src[self.idx+1] == '\n' => {
+                            if lstart != self.idx {
+                                let line = self.src[lstart..self.idx+1].iter().cloned().collect::<String>();
+                                actual.push_str(&line);
+                            }
+                            self.idx += 1;
+                            while self.current().is_ws() {
+                                self.idx += 1;
+                            }
+                            lstart = self.idx;
+                        }
+                        _ => self.idx += 1,
+                    }
+                }
+                self.idx += 3;
+                let raw = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+
+                Str(StrEnum::MLBString(MLString{
+                    actual: actual,
+                    raw: raw,
+                }))
+
+            }
             '"' => {
                 // TODO: Clever iterator trick with count()?
                 self.idx += 1;
@@ -210,7 +240,7 @@ impl Parser {
                         println!("{:?}", &self.src[self.marker..]);
                     }
                 }
-                SString(self.src[self.marker + 1..self.idx].iter().cloned().collect::<String>())
+                Str(StrEnum::SLBString(self.src[self.marker + 1..self.idx].iter().cloned().collect::<String>()))
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 3;

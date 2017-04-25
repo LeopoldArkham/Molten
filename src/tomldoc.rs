@@ -1,4 +1,4 @@
-use value::Value;
+use TOMLElements::Value;
 use parser::TLV;
 
 #[derive(Debug)]

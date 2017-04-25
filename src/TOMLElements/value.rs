@@ -1,11 +1,12 @@
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
-use Table;
-use KeyValue;
+use super::Table;
+use super::KeyValue;
+use super::StrEnum;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    SString(String), // Quote
+    Str(StrEnum), // Quote
     Integer(i64), // Digit, +, -
     Float(f64), // Digit, +, -
     Bool(bool), // char
@@ -17,10 +18,10 @@ pub enum Value {
 
 impl Value {
     pub fn discriminant(&self) -> u32 {
-        use Value::*;
+        use self::Value::*;
         match *self {
             // TODO: use self::...
-            SString(_) => 1 as u32,
+            Str(_) => 1 as u32,
             Integer(_) => 2 as u32,
             Float(_) => 3 as u32,
             Bool(_) => 4 as u32,
@@ -32,9 +33,9 @@ impl Value {
     }
 
     pub fn as_string(&self) -> String {
-        use Value::*;
+        use self::Value::*;
         match *self {
-            SString(ref s) => format!(r#""{}""#, s),
+            Str(ref s) => s.as_string(),
             Integer(ref num) => format!("{}", num),
             Float(ref num) => format!("{}", num),
             Bool(ref b) => format!("{}", b),

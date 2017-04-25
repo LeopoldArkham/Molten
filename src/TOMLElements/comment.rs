@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub struct Comment {
-    indent: String,
-    comment: String,
+    pub indent: String,
+    pub comment: String,
 }
 
 impl Comment {
