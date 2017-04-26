@@ -152,6 +152,7 @@ impl Parser {
                 trail: "".to_string(),
             };
         }
+
         self.mark();
         while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
               self.current() != '\n' {
@@ -178,7 +179,7 @@ impl Parser {
                 let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
                 (None, t)
             }
-            // This must mean we reached EOF
+            // Then we reached EOF
             _ => {
                 let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
                 (None, t)
@@ -206,7 +207,7 @@ impl Parser {
                 let mut actual = String::new();
 
                 while self.src[self.idx..self.idx+3] != ['"', '"', '"'] {
-                    println!("{:?}", self.src[self.idx..self.idx+3].iter().cloned().collect::<Vec<char>>());
+                    // println!("{:?}", self.src[self.idx..self.idx+3].iter().cloned().collect::<Vec<char>>());
                     match self.current() {
                         '/' if self.src[self.idx+1] == '\r' || self.src[self.idx+1] == '\n' => {
                             if lstart != self.idx {
@@ -222,9 +223,16 @@ impl Parser {
                         _ => self.idx += 1,
                     }
                 }
-                self.idx += 3;
-                let raw = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
-
+                self.idx += 2;
+                let raw = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
+                // println!("{}", raw);
+                // for c in raw.chars() {
+                //     match c {
+                //         '\r' => print!("R "),
+                //         '\n' => print!("N "),
+                //         _ => print!("{} ", c),
+                //     }
+                // }
                 Str(StrEnum::MLBString(MLString{
                     actual: actual,
                     raw: raw,

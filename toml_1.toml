@@ -4,13 +4,15 @@
 array = [true, true, false] # Array
 bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
-multi = """Lorem ipsum /
+multi = """Lorem/ ipsum /
            dolor sit /
            amet./
-           """
+           """# Comment from hell
+
+
+
 
 neg = -59
-
 
 [table]
     hello = "world"
