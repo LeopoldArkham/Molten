@@ -7,7 +7,7 @@ pub enum StrEnum {
     /// Single-Line Literal String
     SLLString(String),
     /// Multi-Line Literal String
-    MLLString(MLString),
+    MLLString(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,10 +19,16 @@ pub struct MLString {
 impl StrEnum {
     pub fn as_string(&self) -> String {
         match *self {
-            StrEnum::SLBString(ref s) | StrEnum::SLLString(ref s) => {
+            StrEnum::SLBString(ref s) => {
                 format!(r#""{}""#, s.clone())
             }
-            StrEnum::MLBString(ref ml) | StrEnum::MLLString(ref ml) => {
+            StrEnum::SLLString(ref s) => {
+                format!("'{}'", s.clone())
+            }
+            StrEnum::MLLString(ref s) => {
+                format!("'''{}'''", s.clone())
+            }
+            StrEnum::MLBString(ref ml) => {
                 ml.raw.clone()
             }
         }

@@ -4,11 +4,19 @@
 array = [true, true, false] # Array
 bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
-multi = """
-Lorem/ ipsum /
+single = "Fluctat nec mergitur"
+multi = """/
+Lorem ipsum /
            dolor sit /
            amet./
            """# Comment from hell
+singleL = 'Vulnerant omnes, ultima necat'
+multiL = '''
+    Sic
+    Semper
+    Tyrannis
+    '''
+
 neg = -59
 
 [table]
@@ -21,4 +29,4 @@ neg = -59
 
 [second.table]
 true = false
-list = ["Oh", "my", "God!"]
+list = ["Er", "mah", "Gahd!"]

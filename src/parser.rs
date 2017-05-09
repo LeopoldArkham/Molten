@@ -207,11 +207,10 @@ impl Parser {
                 let mut actual = String::new();
 
                 while self.src[self.idx..self.idx+3] != ['"', '"', '"'] {
-                    // println!("{:?}", self.src[self.idx..self.idx+3].iter().cloned().collect::<Vec<char>>());
                     match self.current() {
                         '/' if self.src[self.idx+1] == '\r' || self.src[self.idx+1] == '\n' => {
                             if lstart != self.idx {
-                                let line = self.src[lstart..self.idx+1].iter().cloned().collect::<String>();
+                                let line = self.src[lstart..self.idx].iter().cloned().collect::<String>();
                                 actual.push_str(&line);
                             }
                             self.idx += 1;
@@ -225,14 +224,7 @@ impl Parser {
                 }
                 self.idx += 2;
                 let raw = self.src[self.marker..self.idx+1].iter().cloned().collect::<String>();
-                // println!("{}", raw);
-                // for c in raw.chars() {
-                //     match c {
-                //         '\r' => print!("R "),
-                //         '\n' => print!("N "),
-                //         _ => print!("{} ", c),
-                //     }
-                // }
+                // Kill me
                 Str(StrEnum::MLBString(MLString{
                     actual: actual,
                     raw: raw,
@@ -248,7 +240,30 @@ impl Parser {
                         println!("{:?}", &self.src[self.marker..]);
                     }
                 }
+                // Send help
                 Str(StrEnum::SLBString(self.src[self.marker + 1..self.idx].iter().cloned().collect::<String>()))
+            }
+            '\'' if (self.src[self.idx+1] == '\'' && self.src[self.idx+2] == '\'') => {
+                // Skip '''
+                self.idx += 3;
+                self.mark();
+
+                while self.src[self.idx..self.idx+3] != ['\'', '\'', '\''] {
+                    self.idx += 1;
+                }
+                self.idx += 2;
+                Str(StrEnum::MLLString(self.src[self.marker..self.idx-2].iter().cloned().collect::<String>()))
+
+            }
+            '\'' => {
+                // Skip '
+                self.idx += 1;
+                self.mark();
+
+                while self.current() != '\'' {
+                    self.idx += 1;
+                }
+                Str(StrEnum::SLLString(self.src[self.marker..self.idx].iter().cloned().collect::<String>()))
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 3;
