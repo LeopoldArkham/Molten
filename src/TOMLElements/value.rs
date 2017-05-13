@@ -6,13 +6,13 @@ use super::StrEnum;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    Str(StrEnum), // Quote
-    Integer(i64), // Digit, +, -
-    Float(f64), // Digit, +, -
-    Bool(bool), // char
-    DateTime((ChronoDateTime<FixedOffset>, String)), // Digit
-    Array(Vec<Value>), // Bracket
-    InlineTable(Vec<KeyValue>), // Curly bracket
+    Str(StrEnum), 
+    Integer(i64), 
+    Float(f64), 
+    Bool(bool), 
+    DateTime((ChronoDateTime<FixedOffset>, String)),
+    Array(Vec<Value>),
+    InlineTable(Vec<KeyValue>),
     Table(Table),
 }
 
@@ -53,15 +53,18 @@ impl Value {
                 buf
             }
             InlineTable(ref vec) => {
+                // TODO: parse comma & whitespace into vec as well
                 let mut buf = String::new();
-                for kv in vec {
+                for (i, kv) in vec.iter().enumerate() {
                     buf.push_str(&kv.as_string());
-                    buf.push_str(", ");
+                    if i != vec.len() - 1 {
+                        buf.push_str(", ");
+                    }
                 }
-                buf
+                format!("{{{}}}", buf)
             }
             Table(ref table) => {
-                // TODO: Chain names and comment here
+                // TODO: Chain names and comment here <-- ????
                 let name = table.name
                     .iter()
                     .fold(String::new(), |mut acc, n| {

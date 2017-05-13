@@ -3,6 +3,7 @@
     value = 5
 array = [true, true, false] # Array
 bool = true
+# Full line comment
 a_date = 1979-05-27T00:32:00.999999-07:00
 single = "Fluctat nec mergitur"
 multi = """/
@@ -20,13 +21,16 @@ multiL = '''
 neg = -59
 
 [table]
+    # broken_aray = [1, 2, 3, 4]
     hello = "world"
     this = "works"
     does = "this?"
-
+    # Will a comment work here?
 
     long = "shot"
 
 [second.table]
 true = false
 list = ["Er", "mah", "Gahd!"]
+# Finish Him!
+inline = {a = true, b = true, c = false}
