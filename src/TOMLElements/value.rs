@@ -1,41 +1,41 @@
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
-use Table;
-use KeyValue;
+use super::Table;
+use super::KeyValue;
+use super::StrEnum;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    SString(String), // Quote
-    Integer(i64), // Digit, +, -
-    Float(f64), // Digit, +, -
-    Bool(bool), // char
-    DateTime((ChronoDateTime<FixedOffset>, String)), // Digit
-    Array(Vec<Value>), // Bracket
-    InlineTable(Vec<KeyValue>), // Curly bracket
+    Str(StrEnum), 
+    Integer(i64), 
+    Float(f64), 
+    Bool(bool), 
+    DateTime((ChronoDateTime<FixedOffset>, String)),
+    Array(Vec<Value>),
+    InlineTable(Vec<KeyValue>),
     Table(Table),
 }
 
 impl Value {
-    // TODO: usize required here?
-    pub fn discriminant(&self) -> usize {
-        use Value::*;
+    pub fn discriminant(&self) -> u32 {
+        use self::Value::*;
         match *self {
             // TODO: use self::...
-            SString(_) => 1 as usize,
-            Integer(_) => 2 as usize,
-            Float(_) => 3 as usize,
-            Bool(_) => 4 as usize,
-            DateTime(_) => 5 as usize,
-            Array(_) => 6 as usize,
-            InlineTable(_) => 7 as usize,
-            Table(_) => 8 as usize,
+            Str(_) => 1 as u32,
+            Integer(_) => 2 as u32,
+            Float(_) => 3 as u32,
+            Bool(_) => 4 as u32,
+            DateTime(_) => 5 as u32,
+            Array(_) => 6 as u32,
+            InlineTable(_) => 7 as u32,
+            Table(_) => 8 as u32,
         }
     }
 
     pub fn as_string(&self) -> String {
-        use Value::*;
+        use self::Value::*;
         match *self {
-            SString(ref s) => format!(r#""{}""#, s),
+            Str(ref s) => s.as_string(),
             Integer(ref num) => format!("{}", num),
             Float(ref num) => format!("{}", num),
             Bool(ref b) => format!("{}", b),
@@ -53,12 +53,15 @@ impl Value {
                 buf
             }
             InlineTable(ref vec) => {
+                // TODO: parse comma & whitespace into vec as well
                 let mut buf = String::new();
-                for kv in vec {
+                for (i, kv) in vec.iter().enumerate() {
                     buf.push_str(&kv.as_string());
-                    buf.push_str(", ");
+                    if i != vec.len() - 1 {
+                        buf.push_str(", ");
+                    }
                 }
-                buf
+                format!("{{{}}}", buf)
             }
             Table(ref table) => {
                 // TODO: Chain names and comment here

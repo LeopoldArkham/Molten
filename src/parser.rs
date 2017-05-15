@@ -1,10 +1,6 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
-use Comment;
-use value::Value;
-use Table;
-use KeyValue;
-use Key;
+use TOMLElements::*;
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
@@ -13,6 +9,7 @@ use std::str::FromStr;
 #[derive(Debug, PartialEq)]
 pub enum TLV {
     WS(String),
+    Comment(Comment),
     Val(KeyValue),
     Table(Table),
 }
@@ -21,6 +18,7 @@ impl TLV {
     pub fn as_string(&self) -> String {
         match *self {
             TLV::WS(ref s) => s.clone(),
+            TLV::Comment(ref c) => c.as_string(),
             TLV::Val(ref kv) => kv.as_string(),
             TLV::Table(ref t) => t.as_string(),
         }
@@ -46,11 +44,18 @@ impl Parser {
         }
     }
 
-    /// Moves the marker to the index's current position
+    ///
+    fn extract(&self) -> String {
+        self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+    }
+
+
+    ///Sets the marker to the index's current position
     fn mark(&mut self) {
         self.marker = self.idx;
     }
 
+    /// Sets the marker to the specified position
     fn mark_at(&mut self, idx: usize) {
         self.marker = idx;
     }
@@ -61,6 +66,7 @@ impl Parser {
     }
 
     /// Parses the input into a TOMLDocument
+    /// CLEANUP
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
 
@@ -78,9 +84,9 @@ impl Parser {
             body.push(self.parse_TLV());
         }
 
-        // Switch to parsing tables. This should be a state machine.
+        // Switch to parsing tables.
         while self.idx != self.end {
-            let next = self.parse_table();
+            let next = self.dispatch_table();
             body.push(next);
         }
 
@@ -88,17 +94,30 @@ impl Parser {
     }
 
     pub fn parse_TLV(&mut self) -> TLV {
+        // Mark start of whitespace
         self.mark();
         loop {
             match self.current() {
+                // Found a newline; Return all whitespace found up to this point.
+                // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
                     return TLV::WS(self.src[self.marker..self.idx].iter().cloned().collect::<String>());
                 }
+                // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
-                _ => {
+                // Found a comment, parse it
+                '#' => {
                     self.idx = self.marker;
-                    return TLV::Val(self.parse_key_value());
+                    let (mut c, trail) = self.parse_comment();
+                    c.comment += &trail;
+                    return TLV::Comment(c);
+                }
+                _ => {
+                    // Return to begining of whitespace so it gets included
+                    // as indentation into the value about to be parsed
+                    self.idx = self.marker;
+                    return TLV::Val(self.parse_key_value(true));
                 }
             }
         }
@@ -116,18 +135,17 @@ impl Parser {
             }
         }
 
-        TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
+        TLV::WS(self.extract())
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self) -> KeyValue {
-        // This should happen sat the begining of a line
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> KeyValue {
         self.mark();
         while self.src[self.idx].is_whitespace() {
             self.idx += 1;
         }
 
-        let indent = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let indent = self.extract();
 
         let key = match self.src[self.idx] {
             '"' => self.parse_quoted_key(),
@@ -143,9 +161,12 @@ impl Parser {
         let val = self.parse_val();
 
         // Parse comment
-        if self.idx != self.src.len() - 1 {
-            self.idx += 1;
-        } else {
+        // TODO: Remove
+
+        if !parse_comment || self.idx == self.end {
+            if self.idx == self.end {
+                println!("Reached EOF in comment parsing");
+            }
             return KeyValue {
                 indent: indent,
                 key: key,
@@ -153,87 +174,151 @@ impl Parser {
                 comment: None,
                 trail: "".to_string(),
             };
-        }
-        self.mark();
-        while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
-              self.current() != '\n' {
-            self.idx += 1;
-        }
-
-        let (comment, trailing) = match self.current() {
-            '#' => {
-                self.idx = self.marker;
-                let (c, t) = self.parse_comment();
-                (Some(c), t)
+        } else {
+            self.mark();
+            while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
+                self.current() != '\n' {
+                self.idx += 1;
             }
-            '\r' => {
-                if self.src[self.idx + 1] == '\n' {
-                    self.idx += 2;
-                    // TODO: Check for out of bounds
-                    let t = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
-                    (None, t)
-                } else {
-                    panic!("Invalid newline pattern");
+
+            let (comment, trailing) = match self.current() {
+                '#' => {
+                    self.idx = self.marker;
+                    let (c, t) = self.parse_comment();
+                    (Some(c), t)
                 }
-            }
-            '\n' => {
-                let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
-                (None, t)
-            }
-            // This must mean we reached EOF
-            _ => {
-                let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
-                (None, t)
-            }
-        };
+                '\r' => {
+                    if self.src[self.idx + 1] == '\n' {
+                        self.idx += 2;
+                        // TODO: Check for out of bounds
+                        let t = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+                        (None, t)
+                    } else {
+                        panic!("Invalid newline pattern");
+                    }
+                }
+                '\n' => {
+                    let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
+                    (None, t)
+                }
+                // Then we reached EOF
+                _ => {
+                    let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
+                    (None, t)
+                }
+            };
 
-        KeyValue {
-            indent: indent,
-            key: key,
-            value: val,
-            comment: comment,
-            trail: trailing,
+            KeyValue {
+                indent: indent,
+                key: key,
+                value: val,
+                comment: comment,
+                trail: trailing,
+            }
         }
     }
 
     /// Attempts to parse a value at the current position.
     pub fn parse_val(&mut self) -> Value {
-        use Value::*;
+        use self::Value::*;
         self.mark();
         match self.src[self.idx] {
+            '"' if (self.src[self.idx+1] == '"' && self.src[self.idx+2] == '"') => {
+                // skip """
+                self.idx += 3;
+                let mut lstart = self.idx;
+                let mut actual = String::new();
+
+                while self.src[self.idx..self.idx+3] != ['"', '"', '"'] {
+                    match self.current() {
+                        '/' if self.src[self.idx+1] == '\r' || self.src[self.idx+1] == '\n' => {
+                            if lstart != self.idx {
+                                let line = self.src[lstart..self.idx].iter().cloned().collect::<String>();
+                                actual.push_str(&line);
+                            }
+                            self.idx += 1;
+                            while self.current().is_ws() {
+                                self.idx += 1;
+                            }
+                            lstart = self.idx;
+                        }
+                        _ => self.idx += 1,
+                    }
+                }
+                self.idx += 2;
+                let raw = self.extract();
+                Str(StrEnum::MLBString(MLString{
+                    actual: actual,
+                    raw: raw,
+                }))
+
+            }
             '"' => {
-                // TODO: Clever iterator trick with count()?
+                // skip '"' and mark
                 self.idx += 1;
+                self.mark();
+
                 while self.src[self.idx] != '"' {
                     self.idx += 1;
                     if self.idx == self.src.len() {
-                        println!("{:?}", &self.src[self.marker..]);
+                        println!("Single line string failure {:?}", &self.src[self.marker..]);
                     }
                 }
-                SString(self.src[self.marker + 1..self.idx].iter().cloned().collect::<String>())
+                let payload = self.extract();
+                // Clear '"'
+                self. idx += 1;
+                Str(StrEnum::SLBString(payload))
+            }
+            '\'' if (self.src[self.idx+1] == '\'' && self.src[self.idx+2] == '\'') => {
+                // Skip '''
+                self.idx += 3;
+                self.mark();
+
+                while self.src[self.idx..self.idx+3] != ['\'', '\'', '\''] {
+                    self.idx += 1;
+                }
+                let payload = self.extract();
+                self.idx += 3;
+                Str(StrEnum::MLLString(payload))
+
+            }
+            '\'' => {
+                // Skip '
+                self.idx += 1;
+                self.mark();
+
+                while self.current() != '\'' {
+                    self.idx += 1;
+                }
+                let payload  = self.extract();
+                self.idx += 1;
+                Str(StrEnum::SLLString(payload))
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
-                self.idx += 3;
+                self.idx += 4;
                 Bool(true)
             }
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
-                self.idx += 4;
+                self.idx += 5;
                 Bool(false)
             }
             '[' => {
+                // Create empty vec and skip '['
                 let mut elems: Vec<Value> = Vec::new();
                 self.idx += 1;
 
                 while self.src[self.idx] != ']' {
+                    println!("Array iteration");
                     while self.src[self.idx].is_ws() || self.src[self.idx] == ',' {
                         self.idx += 1;
                     }
                     let val = self.parse_val();
-                    self.idx += 1;
+                    // self.idx += 1;
                     let check = val.discriminant();
                     elems.push(val);
                     assert_eq!(elems[0].discriminant(), check);
                 }
+                self.idx += 1;
                 Array(elems)
             }
             '{' => {
@@ -241,20 +326,25 @@ impl Parser {
                 self.idx += 1;
 
                 while self.src[self.idx] != '}' {
-                    while self.src[self.idx].is_ws() || self.src[self.idx] == ',' {
+                    while self.src[self.idx].is_ws() || self.current() == ',' {
                         self.idx += 1;
                     }
-                    let val = self.parse_key_value();
+                    println!("Starting at: {}", self.current());
+                    let val = self.parse_key_value(false);
+                    println!("Parsed one inline value");
                     elems.push(val);
                 }
-
+                if self.idx != self.end {
+                    self.idx += 1;
+                } else {
+                    println!("Reached EOF in inline table parsing");
+                }
+                println!("Made it here");
                 InlineTable(elems)
             }
             // TODO: Try parse int => float => datetime
             '+' | '-' | '0'...'9' => {
                 // TODO: Really need capped integers...
-                // TODO: '#' char could be appended with no space
-
                 // Send help.
                 while self.idx != self.src.len() - 1 &&
                       self.src[self.idx + 1].not_whitespace_or_pound() &&
@@ -271,6 +361,9 @@ impl Parser {
                     .cloned()
                     .collect::<String>();
 
+                // Skip last character of value being parsed
+                self.idx += 1;
+
                 // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
                     return Integer(res);
@@ -283,13 +376,17 @@ impl Parser {
                 println!("working on: {:?}", clean);
                 panic!("Could not parse to int, float or DateTime");
             }
-            _ => panic!("Could not infer type of value being parsed"),
+            _ => {
+                println!("Current: {}", self.current());
+                panic!("Could not infer type of value being parsed");
+            }
         }
     }
 
     /// Attempts to parse a comment at the current position, and returns it along with
     /// the newline character. Only call this function if the presence of the pound sign
-    //  is guaranteed.
+    ///  is guaranteed.
+    // TODO: WTF is "trailing"?
     fn parse_comment(&mut self) -> (Comment, String) {
         self.mark();
 
@@ -399,18 +496,49 @@ impl Parser {
         names.into_iter().map(String::from).collect()
     }
 
-    pub fn parse_table(&mut self) -> TLV {
-        // Parser lands on '[' character, skip it.
-        self.idx += 1;
+    /// Advances the parser to the correct function depending on
+    /// whether we are parsing a table, or an array of tables.
+    pub fn dispatch_table(&mut self) -> TLV {
+        // TODO: Table name indentation
+        if self.src[self.idx + 1] == '[' {
+            self.parse_table_array()
+        } else {
+            self.parse_table(false)
+        }
+    }
+
+    pub fn parse_table_array(&mut self) -> TLV {
+        let mut payload = Vec::new();
+
+        while self.idx != self.end
+              && !(self.current() == '['
+              && self.src[self.idx + 1] != '[') {
+            payload.push(self.parse_table(true));
+                  }
+        TLV::Val(KeyValue{
+            indent: "".to_string(),
+            key: Key("test".to_string()),
+            
+        }
+    }
+
+    pub fn parse_table(&mut self, array: bool) -> TLV {
+        // Lands on '[' character, skip it.
+        let inc = match array {
+            false => 1,
+            true => 2,
+        };
+
+        self.idx += inc;
         self.mark();
 
         // Seek the end of the table's name
         while self.current() != ']' {
             // TODO: Quoted names
-            self.idx += 1;
+            self.idx += inc;
         }
         // Get the name
-        let name = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let name = self.extract();
 
         // FRAGILE: Seek start of next line
         while self.current() != '\n' {
