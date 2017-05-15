@@ -64,7 +64,7 @@ impl Value {
                 format!("{{{}}}", buf)
             }
             Table(ref table) => {
-                // TODO: Chain names and comment here <-- ????
+                // TODO: Chain names and comment here
                 let name = table.name
                     .iter()
                     .fold(String::new(), |mut acc, n| {

@@ -84,9 +84,9 @@ impl Parser {
             body.push(self.parse_TLV());
         }
 
-        // Switch to parsing tables. This should be a state machine.
+        // Switch to parsing tables.
         while self.idx != self.end {
-            let next = self.parse_table();
+            let next = self.dispatch_table();
             body.push(next);
         }
 
@@ -135,7 +135,7 @@ impl Parser {
             }
         }
 
-        TLV::WS(self.src[self.marker..self.idx].iter().collect::<String>())
+        TLV::WS(self.extract())
     }
 
     /// Parses and returns a key/value pair.
@@ -496,18 +496,49 @@ impl Parser {
         names.into_iter().map(String::from).collect()
     }
 
-    pub fn parse_table(&mut self) -> TLV {
-        // Parser lands on '[' character, skip it.
-        self.idx += 1;
+    /// Advances the parser to the correct function depending on
+    /// whether we are parsing a table, or an array of tables.
+    pub fn dispatch_table(&mut self) -> TLV {
+        // TODO: Table name indentation
+        if self.src[self.idx + 1] == '[' {
+            self.parse_table_array()
+        } else {
+            self.parse_table(false)
+        }
+    }
+
+    pub fn parse_table_array(&mut self) -> TLV {
+        let mut payload = Vec::new();
+
+        while self.idx != self.end
+              && !(self.current() == '['
+              && self.src[self.idx + 1] != '[') {
+            payload.push(self.parse_table(true));
+                  }
+        TLV::Val(KeyValue{
+            indent: "".to_string(),
+            key: Key("test".to_string()),
+            
+        }
+    }
+
+    pub fn parse_table(&mut self, array: bool) -> TLV {
+        // Lands on '[' character, skip it.
+        let inc = match array {
+            false => 1,
+            true => 2,
+        };
+
+        self.idx += inc;
         self.mark();
 
         // Seek the end of the table's name
         while self.current() != ']' {
             // TODO: Quoted names
-            self.idx += 1;
+            self.idx += inc;
         }
         // Get the name
-        let name = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let name = self.extract();
 
         // FRAGILE: Seek start of next line
         while self.current() != '\n' {

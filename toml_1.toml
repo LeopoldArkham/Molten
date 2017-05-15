@@ -7,7 +7,7 @@ bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
 single = "Fluctat nec mergitur"
 multi = """/
-Lorem ipsum /
+           Lorem ipsum /
            dolor sit /
            amet./
            """# Comment from hell
@@ -26,6 +26,7 @@ neg = -59
     this = "works"
     does = "this?"
     # Will a comment work here?
+    it_does = true#WOW
 
     long = "shot"
 
@@ -34,3 +35,12 @@ true = false
 list = ["Er", "mah", "Gahd!"]
 # Finish Him!
 inline = {a = true, b = true, c = false}
+
+
+[[TableArray]]
+    val = true
+
+[[TableArray]]
+    val = true
+[[TableArray]]
+val = false
