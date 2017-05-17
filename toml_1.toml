@@ -36,11 +36,17 @@ list = ["Er", "mah", "Gahd!"]
 # Finish Him!
 inline = {a = true, b = true, c = false}
 
+[[parsethis]]
+a = 1
+b = 2
 
-[[TableArray]]
-    val = true
+[[parsethis]]
+b = 1
+c = 3
 
-[[TableArray]]
-    val = true
-[[TableArray]]
-val = false
+[[parsethis]]
+a = 4
+inline = {a = true, b = true, c = false}
+
+[tableattheend]
+inline = {a = true, b = true, c = false}

@@ -12,6 +12,7 @@ pub enum TLV {
     Comment(Comment),
     Val(KeyValue),
     Table(Table),
+    AoT(Vec<TLV>),
 }
 
 impl TLV {
@@ -21,6 +22,13 @@ impl TLV {
             TLV::Comment(ref c) => c.as_string(),
             TLV::Val(ref kv) => kv.as_string(),
             TLV::Table(ref t) => t.as_string(),
+            TLV::AoT(ref vec) => {
+                let mut res = String::new();
+                for e in vec.iter() {
+                    res.push_str(&e.as_string());
+                }
+                res
+            },
         }
     }
 }
@@ -44,11 +52,10 @@ impl Parser {
         }
     }
 
-    ///
+    /// Extract the value between marker and index.
     fn extract(&self) -> String {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
     }
-
 
     ///Sets the marker to the index's current position
     fn mark(&mut self) {
@@ -70,11 +77,7 @@ impl Parser {
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Vec::new();
 
-        // Take leading whitespace
-        let leading_ws = self.take_ws();
-        body.push(leading_ws);
-
-        // Take all keyvals outside on tables
+        // Take all keyvals outside of tables/AoT's
         while self.idx != self.end {
             // Break out when a table is found
             if self.current() == '[' {
@@ -84,13 +87,59 @@ impl Parser {
             body.push(self.parse_TLV());
         }
 
-        // Switch to parsing tables.
+        // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
             let next = self.dispatch_table();
             body.push(next);
         }
 
         TOMLDocument(body)
+    }
+
+    pub fn dispatch_table(&mut self) -> TLV {
+        match self.current() {
+            '[' if self.src[self.idx + 1] == '[' => {
+                self.parse_AoT()
+            }
+            '[' => {
+                self.parse_table(false)
+            }
+            _ => panic!("Should not have entered dispatch_table()"),
+        }
+    }
+
+    /// Parses shallow AoTs
+    pub fn parse_AoT(&mut self) -> TLV {
+        let mut payload = Vec::new();
+        let name = self.extract_AoT_name();
+        
+        while self.extract_AoT_name() == name {
+            payload.push(self.parse_table(true));
+        }
+
+        TLV::AoT(payload)
+    }
+
+    pub fn extract_AoT_name(&mut self) -> Option<String> {
+        println!("Made it into paotn");
+        let start = self.idx;
+        
+        let res = match self.current() {
+            '[' if self.src[self.idx+1] == '[' => {
+                // Skip [[
+                self.idx += 2;
+                self.mark();
+                
+                while self.src[self.idx..self.idx+2] != [']', ']'] {
+                    self.idx += 1;
+                }
+                Some(self.extract())
+            }
+            _ => None,
+        };
+
+        self.idx = start;
+        res
     }
 
     pub fn parse_TLV(&mut self) -> TLV {
@@ -102,7 +151,7 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return TLV::WS(self.src[self.marker..self.idx].iter().cloned().collect::<String>());
+                    return TLV::WS(self.extract());
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -191,7 +240,7 @@ impl Parser {
                     if self.src[self.idx + 1] == '\n' {
                         self.idx += 2;
                         // TODO: Check for out of bounds
-                        let t = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+                        let t = self.extract();
                         (None, t)
                     } else {
                         panic!("Invalid newline pattern");
@@ -308,7 +357,6 @@ impl Parser {
                 self.idx += 1;
 
                 while self.src[self.idx] != ']' {
-                    println!("Array iteration");
                     while self.src[self.idx].is_ws() || self.src[self.idx] == ',' {
                         self.idx += 1;
                     }
@@ -329,9 +377,7 @@ impl Parser {
                     while self.src[self.idx].is_ws() || self.current() == ',' {
                         self.idx += 1;
                     }
-                    println!("Starting at: {}", self.current());
                     let val = self.parse_key_value(false);
-                    println!("Parsed one inline value");
                     elems.push(val);
                 }
                 if self.idx != self.end {
@@ -339,7 +385,6 @@ impl Parser {
                 } else {
                     println!("Reached EOF in inline table parsing");
                 }
-                println!("Made it here");
                 InlineTable(elems)
             }
             // TODO: Try parse int => float => datetime
@@ -394,7 +439,7 @@ impl Parser {
         while self.current() != '#' {
             self.idx += 1;
         }
-        let indent = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let indent = self.extract();
 
         // Skip #
         self.idx += 1;
@@ -404,7 +449,7 @@ impl Parser {
         while self.current() != '\r' && self.current() != '\n' {
             self.idx += 1;
         }
-        let comment = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let comment = self.extract();
 
         self.mark();
         let trailing = match self.current() {
@@ -440,7 +485,7 @@ impl Parser {
             self.idx += 1;
         }
 
-        self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+        self.extract()
     }
 
     pub fn parse_quoted_key(&mut self) -> Key {
@@ -452,7 +497,7 @@ impl Parser {
             self.idx += 1;
         }
 
-        let key = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let key = self.extract();
         // Skip "
         self.idx += 1;
 
@@ -464,7 +509,7 @@ impl Parser {
         while self.src[self.idx].is_bare_key_char() {
             self.idx += 1;
         }
-        let key = self.src[self.marker..self.idx].iter().cloned().collect::<String>();
+        let key = self.extract();
         Key::Bare(key)
     }
 
@@ -496,49 +541,25 @@ impl Parser {
         names.into_iter().map(String::from).collect()
     }
 
-    /// Advances the parser to the correct function depending on
-    /// whether we are parsing a table, or an array of tables.
-    pub fn dispatch_table(&mut self) -> TLV {
-        // TODO: Table name indentation
-        if self.src[self.idx + 1] == '[' {
-            self.parse_table_array()
-        } else {
-            self.parse_table(false)
-        }
-    }
-
-    pub fn parse_table_array(&mut self) -> TLV {
-        let mut payload = Vec::new();
-
-        while self.idx != self.end
-              && !(self.current() == '['
-              && self.src[self.idx + 1] != '[') {
-            payload.push(self.parse_table(true));
-                  }
-        TLV::Val(KeyValue{
-            indent: "".to_string(),
-            key: Key("test".to_string()),
-            
-        }
-    }
-
+    // TODO: Clean this for the love of Eru
     pub fn parse_table(&mut self, array: bool) -> TLV {
         // Lands on '[' character, skip it.
         let inc = match array {
             false => 1,
             true => 2,
         };
-
         self.idx += inc;
         self.mark();
 
         // Seek the end of the table's name
         while self.current() != ']' {
             // TODO: Quoted names
-            self.idx += inc;
+            self.idx += 1;
         }
+        
         // Get the name
         let name = self.extract();
+        // println!("{}", name);
 
         // FRAGILE: Seek start of next line
         while self.current() != '\n' {
@@ -559,6 +580,7 @@ impl Parser {
         }
 
         TLV::Table(Table {
+            array: array,
             name: vec![name],
             comment: "".to_string(),
             values: values,

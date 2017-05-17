@@ -20,7 +20,6 @@ impl Value {
     pub fn discriminant(&self) -> u32 {
         use self::Value::*;
         match *self {
-            // TODO: use self::...
             Str(_) => 1 as u32,
             Integer(_) => 2 as u32,
             Float(_) => 3 as u32,
