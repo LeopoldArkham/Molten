@@ -21,7 +21,7 @@ multiL = '''
 neg = -59
 
 [table]
-    # broken_aray = [1, 2, 3, 4]
+    # broken_array = [1, 2, 3, 4]
     hello = "world"
     this = "works"
     does = "this?"

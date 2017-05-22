@@ -1,6 +1,7 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use TOMLElements::*;
+use index::*;
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
@@ -28,7 +29,7 @@ impl TLV {
                     res.push_str(&e.as_string());
                 }
                 res
-            },
+            }
         }
     }
 }
@@ -55,6 +56,16 @@ impl Parser {
     /// Extract the value between marker and index.
     fn extract(&self) -> String {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+    }
+
+    /// Increments the parser if the end of the input has not been reached
+    fn inc(&mut self) -> bool {
+        if self.idx!= self.end {
+            self.idx += 1;
+            true
+        } else {
+            false
+        }
     }
 
     ///Sets the marker to the index's current position
