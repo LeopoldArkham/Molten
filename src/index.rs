@@ -1,5 +1,5 @@
 use std::ops::Index;
-use std::fmt;
+use std::fmt::Debug;
 
 use tomldoc::TOMLDocument;
 use TOMLElements::*;
@@ -40,7 +40,7 @@ impl Index<usize> for TOMLDocument {
     }
 }
 
-pub trait IndexReturn {}
+pub trait IndexReturn: Debug {}
 impl IndexReturn for Value {}
 impl IndexReturn for KeyValue {}
 
