@@ -1,38 +1,13 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
-use TOMLElements::*;
 use index::*;
+use items::*;
+use comment::Comment;
+use container::Container;
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 
 use std::str::FromStr;
-
-#[derive(Debug, PartialEq)]
-pub enum TLV {
-    WS(String),
-    Comment(Comment),
-    Val(KeyValue),
-    Table(Table),
-    AoT(Vec<TLV>),
-}
-
-impl TLV {
-    pub fn as_string(&self) -> String {
-        match *self {
-            TLV::WS(ref s) => s.clone(),
-            TLV::Comment(ref c) => c.as_string(),
-            TLV::Val(ref kv) => kv.as_string(),
-            TLV::Table(ref t) => t.as_string(),
-            TLV::AoT(ref vec) => {
-                let mut res = String::new();
-                for e in vec.iter() {
-                    res.push_str(&e.as_string());
-                }
-                res
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Parser {
@@ -107,7 +82,7 @@ impl Parser {
         TOMLDocument(body)
     }
 
-    pub fn dispatch_table(&mut self) -> TLV {
+    pub fn dispatch_table(&mut self) -> Item {
         match self.current() {
             '[' if self.src[self.idx + 1] == '[' => {
                 self.parse_AoT()
@@ -120,7 +95,7 @@ impl Parser {
     }
 
     /// Parses shallow AoTs
-    pub fn parse_AoT(&mut self) -> TLV {
+    pub fn parse_AoT(&mut self) -> Item {
         let mut payload = Vec::new();
         let name = self.extract_AoT_name();
         
@@ -128,7 +103,7 @@ impl Parser {
             payload.push(self.parse_table(true));
         }
 
-        TLV::AoT(payload)
+        Item::AoT(payload)
     }
 
     pub fn extract_AoT_name(&mut self) -> Option<String> {
@@ -153,7 +128,7 @@ impl Parser {
         res
     }
 
-    pub fn parse_TLV(&mut self) -> TLV {
+    pub fn parse_TLV(&mut self) -> Item {
         // Mark start of whitespace
         self.mark();
         loop {
@@ -162,7 +137,7 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return TLV::WS(self.extract());
+                    return Item::WS(self.extract());
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -171,13 +146,13 @@ impl Parser {
                     self.idx = self.marker;
                     let (mut c, trail) = self.parse_comment();
                     c.comment += &trail;
-                    return TLV::Comment(c);
+                    return Item::Comment(c);
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
                     // as indentation into the value about to be parsed
                     self.idx = self.marker;
-                    return TLV::Val(self.parse_key_value(true));
+                    return Item::Val(self.parse_key_value(true));
                 }
             }
         }
@@ -185,7 +160,7 @@ impl Parser {
 
     /// Advances the parser to the first non-whitespce character
     /// and returns the consumed whitespace as a string.
-    pub fn take_ws(&mut self) -> TLV {
+    pub fn take_ws(&mut self) -> Item {
         self.mark();
         while self.current().is_ws() {
             self.idx += 1;
@@ -195,11 +170,11 @@ impl Parser {
             }
         }
 
-        TLV::WS(self.extract())
+        Item::WS(self.extract())
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> KeyValue {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Key, Item) {
         self.mark();
         while self.src[self.idx].is_whitespace() {
             self.idx += 1;
@@ -227,14 +202,9 @@ impl Parser {
             if self.idx == self.end {
                 println!("Reached EOF in comment parsing");
             }
-            return KeyValue {
-                indent: indent,
-                key: key,
-                value: val,
-                comment: None,
-                trail: "".to_string(),
-            };
+            return (key, val);
         } else {
+            // SEND HELP
             self.mark();
             while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
                 self.current() != '\n' {
@@ -267,21 +237,14 @@ impl Parser {
                     (None, t)
                 }
             };
-
-            KeyValue {
-                indent: indent,
-                key: key,
-                value: val,
-                comment: comment,
-                trail: trailing,
-            }
+            (key, val)
         }
     }
 
     /// Attempts to parse a value at the current position.
-    pub fn parse_val(&mut self) -> Value {
-        use self::Value::*;
+    pub fn parse_val(&mut self) -> Item {
         self.mark();
+        let meta: LineMeta = Default::default();
         match self.src[self.idx] {
             '"' if (self.src[self.idx+1] == '"' && self.src[self.idx+2] == '"') => {
                 // skip """
@@ -307,11 +270,12 @@ impl Parser {
                 }
                 self.idx += 2;
                 let raw = self.extract();
-                Str(StrEnum::MLBString(MLString{
-                    actual: actual,
-                    raw: raw,
-                }))
-
+                
+                Item::Str {
+                    t: StringType::MLB(raw),
+                    val: actual,
+                    meta: meta,
+                }
             }
             '"' => {
                 // skip '"' and mark
@@ -327,7 +291,12 @@ impl Parser {
                 let payload = self.extract();
                 // Clear '"'
                 self. idx += 1;
-                Str(StrEnum::SLBString(payload))
+                
+                Item::Str {
+                    t: StringType::SLB,
+                    val: payload,
+                    meta: meta,
+                }
             }
             '\'' if (self.src[self.idx+1] == '\'' && self.src[self.idx+2] == '\'') => {
                 // Skip '''
@@ -339,8 +308,12 @@ impl Parser {
                 }
                 let payload = self.extract();
                 self.idx += 3;
-                Str(StrEnum::MLLString(payload))
-
+                
+                Item::Str {
+                    t: StringType::MLL,
+                    val: payload,
+                    meta: meta,
+                }
             }
             '\'' => {
                 // Skip '
@@ -352,19 +325,32 @@ impl Parser {
                 }
                 let payload  = self.extract();
                 self.idx += 1;
-                Str(StrEnum::SLLString(payload))
+                
+                Item::Str {
+                    t: StringType::SLL,
+                    val: payload,
+                    meta: meta,
+                }
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 4;
-                Bool(true)
+                
+                Item::Bool {
+                    val: true,
+                    meta: meta,
+                }
             }
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
                 self.idx += 5;
-                Bool(false)
+                
+                Item::Bool {
+                    val: false,
+                    meta: meta,
+                }
             }
             '[' => {
                 // Create empty vec and skip '['
-                let mut elems: Vec<Value> = Vec::new();
+                let mut elems: Vec<Item> = Vec::new();
                 self.idx += 1;
 
                 while self.src[self.idx] != ']' {
@@ -378,10 +364,13 @@ impl Parser {
                     assert_eq!(elems[0].discriminant(), check);
                 }
                 self.idx += 1;
-                Array(elems)
+                Item::Array {
+                    val: elems,
+                    meta: meta,
+                }
             }
             '{' => {
-                let mut elems: Vec<KeyValue> = Vec::new();
+                let mut elems: Container = Container::new();
                 self.idx += 1;
 
                 while self.src[self.idx] != '}' {
@@ -396,12 +385,13 @@ impl Parser {
                 } else {
                     println!("Reached EOF in inline table parsing");
                 }
-                InlineTable(elems)
+                Item::InlineTable {
+                    val: elems,
+                    meta: meta,
+                }
             }
-            // TODO: Try parse int => float => datetime
             '+' | '-' | '0'...'9' => {
-                // TODO: Really need capped integers...
-                // Send help.
+                // TODO: Clean this mess
                 while self.idx != self.src.len() - 1 &&
                       self.src[self.idx + 1].not_whitespace_or_pound() &&
                       self.src[self.idx + 1] != ',' &&
@@ -422,11 +412,21 @@ impl Parser {
 
                 // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
-                    return Integer(res);
+                    return Item::Integer {
+                        val: res,
+                        meta: meta,
+                    };
                 } else if let Ok(res) = f64::from_str(&clean) {
-                    return Float(res);
+                    return Item::Float {
+                        val: res,
+                        meta: meta,
+                    };
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
-                    return DateTime((res, clean));
+                    return Item::DateTime {
+                        val: res,
+                        raw: clean,
+                        meta: meta,
+                    };
                 }
 
                 println!("working on: {:?}", clean);
@@ -553,7 +553,7 @@ impl Parser {
     }
 
     // TODO: Clean this for the love of Eru
-    pub fn parse_table(&mut self, array: bool) -> TLV {
+    pub fn parse_table(&mut self, array: bool) -> Item {
         // Lands on '[' character, skip it.
         let inc = match array {
             false => 1,
@@ -578,7 +578,7 @@ impl Parser {
         }
         self.idx += 1;
 
-        let mut values = Vec::new();
+        let mut values = Container::new();
         loop {
             if self.idx == self.end {
                 break;
@@ -590,12 +590,14 @@ impl Parser {
             }
         }
 
-        TLV::Table(Table {
-            array: array,
-            name: vec![name],
-            comment: "".to_string(),
-            values: values,
-        })
-
+        Item::Table {
+            is_array: array,
+            value: values,
+            meta: LineMeta {
+                indent: "".to_string(),
+                comment: None,
+                trail: "".to_string,
+            }
+        }
     }
 }

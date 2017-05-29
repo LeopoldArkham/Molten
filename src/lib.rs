@@ -8,23 +8,16 @@ extern crate chrono;
 mod tomlchar;
 mod tomldoc;
 mod parser;
-mod TOMLElements;
 mod index;
+mod items;
+mod container;
+mod comment;
 
 use std::str::FromStr;
 use std::fs::File;
 use std::io::prelude::*;
 
 use linked_hash_map::LinkedHashMap;
-
-
-
-// TODO: All string types
-// TODO: Replace TLV mess with generic trait objects over flat 'item' space.
-// ->
-// TODO: Move to cow and check for implicit string copies
-// TODO: Better separate test infrastructure
-// TODO: Debug view &|| logging
 
 #[test]
 fn toml_test_1() {

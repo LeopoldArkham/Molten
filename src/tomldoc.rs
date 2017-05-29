@@ -1,8 +1,7 @@
-use TOMLElements::Value;
-use parser::TLV;
+use container::Container;
 
 #[derive(Debug)]
-pub struct TOMLDocument(pub Vec<TLV>);
+pub struct TOMLDocument(pub Vec<Container>);
 
 impl TOMLDocument {
     pub fn as_string(&self) -> String {
