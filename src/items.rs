@@ -75,3 +75,13 @@ pub enum Item {
     },
     AoT(Vec<Item>)
 }
+
+impl Item {
+    pub fn is_value(&self) -> bool {
+        use self::Item::*;
+        match *self {
+            WS(_) | Comment(_) => false,
+            _ => true,
+        }
+    }
+}

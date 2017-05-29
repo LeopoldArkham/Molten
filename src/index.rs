@@ -2,8 +2,6 @@ use std::ops::Index;
 use std::fmt::Debug;
 
 use tomldoc::TOMLDocument;
-use TOMLElements::*;
-use parser::TLV;
 
 impl Index<&'static str> for TOMLDocument {
     type Output =  TLV;
