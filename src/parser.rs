@@ -377,8 +377,8 @@ impl Parser {
                     while self.src[self.idx].is_ws() || self.current() == ',' {
                         self.idx += 1;
                     }
-                    let val = self.parse_key_value(false);
-                    elems.push(val);
+                    let (key, val) = self.parse_key_value(false);
+                    elems.append(key, val);
                 }
                 if self.idx != self.end {
                     self.idx += 1;
@@ -512,8 +512,11 @@ impl Parser {
         // Skip "
         self.idx += 1;
 
-        Key::Quoted(key)
-    }
+        Key {
+            t: KeyType::Quoted,
+            actual: key.clone(),
+            raw: key
+        }    }
 
     pub fn parse_bare_key(&mut self) -> Key {
         self.mark();
@@ -521,7 +524,12 @@ impl Parser {
             self.idx += 1;
         }
         let key = self.extract();
-        Key::Bare(key)
+
+        Key {
+            t: KeyType::Bare,
+            actual: key.clone(),
+            raw: key
+        }
     }
 
     pub fn parse_section_title(&mut self) -> Vec<String> {
@@ -569,9 +577,14 @@ impl Parser {
         }
         
         // Get the name
+        // TODO: Get a key from here
         let name = self.extract();
         // println!("{}", name);
-
+        let key = Key {
+            t: KeyType::Bare,
+            raw: name.clone(),
+            actual: name
+        };
         // FRAGILE: Seek start of next line
         while self.current() != '\n' {
             self.idx += 1;
@@ -586,7 +599,7 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
-                _ => values.push(self.parse_TLV()),
+                _ => values.append(key, self.parse_TLV()),
             }
         }
 
@@ -596,7 +609,7 @@ impl Parser {
             meta: LineMeta {
                 indent: "".to_string(),
                 comment: None,
-                trail: "".to_string,
+                trail: "".to_string(),
             }
         }
     }

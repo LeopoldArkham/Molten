@@ -21,12 +21,14 @@ pub struct LineMeta {
     trail: String,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq)]
+// TODO: Store raw in enum variant
 enum KeyType {
     Bare,
     Quoted,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Key {
     t: KeyType,
     raw: String,
@@ -53,7 +55,7 @@ pub enum Item {
     DateTime {
         val: ChronoDateTime<FixedOffset>,
         raw: String,
-        meat: LineMeta,
+        meta: LineMeta,
     },
     Array {
         val: Vec<Item>,
