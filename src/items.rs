@@ -23,7 +23,7 @@ pub struct LineMeta {
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 // TODO: Store raw in enum variant
-enum KeyType {
+pub enum KeyType {
     Bare,
     Quoted,
 }
@@ -39,7 +39,7 @@ pub struct Key {
 // TODO: Add LineMeta field to all value variants
 pub enum Item {
     WS(String),
-    Comment(String),
+    Comment(Comment),
     Integer {
       val: i64,
       meta: LineMeta,  
@@ -84,6 +84,23 @@ impl Item {
         match *self {
             WS(_) | Comment(_) => false,
             _ => true,
+        }
+    }
+
+    pub fn discriminant(&self) -> i32 {
+        use self::Item::*;
+        match *self {
+            WS(_) => 0,
+            Comment(_) => 1,
+            Integer {..} => 2,
+            Float {..} => 3,
+            Bool {..} => 4,
+            DateTime {..} => 5,
+            Array {..} => 6,
+            Table {..} => 7,
+            InlineTable {..} => 8,
+            Str {..} => 9,
+            AoT(_) => 10,
         }
     }
 }
