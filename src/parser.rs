@@ -61,7 +61,7 @@ impl Parser {
     /// Parses the input into a TOMLDocument
     /// CLEANUP
     pub fn parse(&mut self) -> TOMLDocument {
-        let mut body = Vec::new();
+        let mut body = Container::new();
 
         // Take all keyvals outside of tables/AoT's
         while self.idx != self.end {
@@ -70,7 +70,7 @@ impl Parser {
                 break;
             }
             // Take and wrap one KV pair
-            body.push(self.parse_TLV());
+            body.append(self.parse_TLV());
         }
 
         // Switch to parsing tables and arrays of tables
@@ -128,7 +128,7 @@ impl Parser {
         res
     }
 
-    pub fn parse_TLV(&mut self) -> Item {
+    pub fn parse_TLV(&mut self) -> (Item, Option<Key>) {
         // Mark start of whitespace
         self.mark();
         loop {
@@ -137,7 +137,7 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return Item::WS(self.extract());
+                    return (Item::WS(self.extract(), None);
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -146,7 +146,7 @@ impl Parser {
                     self.idx = self.marker;
                     let (mut c, trail) = self.parse_comment();
                     c.comment += &trail;
-                    return Item::Comment(c);
+                    return (Item::Comment(c), None);
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
@@ -599,7 +599,7 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
-                _ => values.append(key, self.parse_TLV()),
+                _ => values.append(self.parse_TLV()),
             }
         }
 
