@@ -4,8 +4,9 @@ use items::*;
 
 #[derive(Debug)]
 pub struct Container {
-    map: HashMap<Key, usize>,
-    body: Vec<Item>,
+    // TODO: remove pub after implementing iterator methods
+    pub map: HashMap<Key, usize>,
+    pub body: Vec<(Option<Key> ,Item)>,
 }
 
 impl Container {
@@ -16,11 +17,12 @@ impl Container {
         }
     }
 
-    pub fn append(&mut self, item: Item, key: Option<Key>) {
+    pub fn append<K: Into<Option<Key>>>(&mut self, item: Item, _key: K) {
+        let key = _key.into();
         if let Some(k) = key {
             self.map.insert(k, self.body.len());
         }
-        self.body.push(item);
+        self.body.push((key, item));
     }
 
     // pub fn append(&mut self, key: Key, item: Item) {

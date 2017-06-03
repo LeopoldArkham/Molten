@@ -70,13 +70,14 @@ impl Parser {
                 break;
             }
             // Take and wrap one KV pair
-            body.append(self.parse_TLV());
+            let kv = self.parse_TLV();
+            body.append(kv.0, kv.1);
         }
 
         // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
             let next = self.dispatch_table();
-            body.push(next);
+            body.append(next, None);
         }
 
         TOMLDocument(body)
@@ -137,7 +138,7 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return (Item::WS(self.extract(), None);
+                    return (Item::WS(self.extract()), None);
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -152,7 +153,7 @@ impl Parser {
                     // Return to begining of whitespace so it gets included
                     // as indentation into the value about to be parsed
                     self.idx = self.marker;
-                    return Item::Val(self.parse_key_value(true));
+                    return self.parse_key_value(true);
                 }
             }
         }
@@ -174,7 +175,7 @@ impl Parser {
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Key, Item) {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Item, Option<Key>) {
         self.mark();
         while self.src[self.idx].is_whitespace() {
             self.idx += 1;
@@ -202,7 +203,7 @@ impl Parser {
             if self.idx == self.end {
                 println!("Reached EOF in comment parsing");
             }
-            return (key, val);
+            return (val, Some(key));
         } else {
             // SEND HELP
             self.mark();
@@ -237,7 +238,7 @@ impl Parser {
                     (None, t)
                 }
             };
-            (key, val)
+            (val, Some(key))
         }
     }
 
@@ -599,7 +600,10 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
-                _ => values.append(self.parse_TLV()),
+                _ => {
+                    let kv = self.parse_TLV();
+                    values.append(kv.0, kv.1);
+                }
             }
         }
 
