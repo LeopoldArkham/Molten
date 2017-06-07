@@ -76,14 +76,14 @@ impl Parser {
 
         // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
-            let next = self.dispatch_table();
-            body.append(next, None);
+            let (k, v) = self.dispatch_table();
+            body.append(v, k);
         }
 
         TOMLDocument(body)
     }
 
-    pub fn dispatch_table(&mut self) -> Item {
+    pub fn dispatch_table(&mut self) -> (Key, Item) {
         match self.current() {
             '[' if self.src[self.idx + 1] == '[' => {
                 self.parse_AoT()
@@ -96,15 +96,18 @@ impl Parser {
     }
 
     /// Parses shallow AoTs
-    pub fn parse_AoT(&mut self) -> Item {
+    pub fn parse_AoT(&mut self) -> (Key, Item) {
         let mut payload = Vec::new();
         let name = self.extract_AoT_name();
-        
         while self.extract_AoT_name() == name {
-            payload.push(self.parse_table(true));
+            payload.push(self.parse_table(true).1);
         }
-
-        Item::AoT(payload)
+        let key = Key {
+            t: KeyType::Bare,
+            raw: name.clone().unwrap(),
+            actual: name.unwrap()
+        };
+        (key, Item::AoT(payload))
     }
 
     pub fn extract_AoT_name(&mut self) -> Option<String> {
@@ -194,8 +197,8 @@ impl Parser {
         }
 
         // Parse value
-        let val = self.parse_val();
-
+        let mut val = self.parse_val();
+        val.meta_mut().indent = indent;
         // Parse comment
         // TODO: Remove
 
@@ -238,6 +241,8 @@ impl Parser {
                     (None, t)
                 }
             };
+            val.meta_mut().comment = comment;
+            val.meta_mut().trail = trailing;
             (val, Some(key))
         }
     }
@@ -562,7 +567,7 @@ impl Parser {
     }
 
     // TODO: Clean this for the love of Eru
-    pub fn parse_table(&mut self, array: bool) -> Item {
+    pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
         // Lands on '[' character, skip it.
         let inc = match array {
             false => 1,
@@ -606,15 +611,17 @@ impl Parser {
                 }
             }
         }
-
-        Item::Table {
-            is_array: array,
-            value: values,
-            meta: LineMeta {
-                indent: "".to_string(),
-                comment: None,
-                trail: "".to_string(),
+        (
+            key,
+            Item::Table {
+                is_array: array,
+                val: values,
+                meta: LineMeta {
+                    indent: "".to_string(),
+                    comment: None,
+                    trail: "".to_string(),
+                }
             }
-        }
+        )
     }
 }

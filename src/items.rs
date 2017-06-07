@@ -3,7 +3,7 @@ use chrono::{DateTime as ChronoDateTime, FixedOffset};
 use container::Container;
 use comment::Comment;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StringType {
     SLB,
     /// The multi-line basic string's in-file representation
@@ -14,29 +14,49 @@ pub enum StringType {
     MLL,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LineMeta {
-    indent: String,
-    comment: Option<Comment>,
-    trail: String,
+    pub indent: String,
+    pub comment: Option<Comment>,
+    pub trail: String,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+impl LineMeta {
+    pub fn comment(&self) -> String {
+        if let Some(ref c) = self.comment {
+            c.as_string()
+        } else {
+            "".to_string()
+        }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 // TODO: Store raw in enum variant
 pub enum KeyType {
     Bare,
     Quoted,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Key {
-    t: KeyType,
-    raw: String,
-    actual: String,
+    pub t: KeyType,
+    pub raw: String,
+    pub actual: String,
 }
 
-#[derive(Debug)]
-// TODO: Add LineMeta field to all value variants
+impl Key {
+    pub fn as_string(&self) -> String {
+        let quote = match self.t {
+            KeyType::Bare => "",
+            KeyType::Quoted => r#"""#
+        };
+
+        format!("{}{}{}", quote, self.raw, quote)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Item {
     WS(String),
     Comment(Comment),
@@ -108,57 +128,96 @@ impl Item {
     pub fn as_string(&self) -> String {
         use self::Item::*;
         match *self {
-            WS(s) => s,
-            Comment(c) => c.as_string(),
-            Integer{val, meta} => {
-                let c = comment_to_string(meta.comment);
-                format!{"{}{}{}{}", meta.indent, val, c, meta.trail}
-            },
-            Float{val, meta} => {
-                let c = comment_to_string(meta.comment);
-                format!{"{}{}{}{}", meta.indent, val, c, meta.trail}
-            },
-            Bool{val, meta} => {
-                let c = comment_to_string(meta.comment);
-                format!{"{}{}{}{}", meta.indent, val, c, meta.trail}
-            },
-            DateTime{raw, meta, ..} => {
-                let c = comment_to_string(meta.comment);
-                format!{"{}{}{}{}", meta.indent, raw, c, meta.trail}
-            },
-            Array{val, meta} => {
-                let c = comment_to_string(meta.comment);
+            WS(ref s) => s.clone(),
+            Comment(ref c) => c.as_string(),
+            Integer{val, ..} => format!("{}", val),
+            Float{val, ..} => format!("{}", val),
+            Bool{val, ..} => format!("{}", val),
+            DateTime{ref raw, ..} => format!("{}", raw),
+            Array{ref val, ..} => {
                 let mut buf = String::new();
                 buf.push_str("[");
-                for item in val {
+                for (i, item) in val.iter().enumerate() {
                     buf.push_str(&item.as_string());
-                    buf.push_str(", ");
+                    if i != val.len() - 1 {
+                        buf.push_str(", ");
+                    }
                 }
                 buf.push_str("]");
-                format!{"{}{}{}{}", meta.indent, buf, c, meta.trail}
+                buf
             },
-            Table{val, is_array, meta} => {
-                "".to_string()
+            Table{ref val, is_array, ref meta} => {
+                val.as_string()
+                // "screw feminism".to_string()
             }
-            InlineTable{val, meta} => {
-                let c = comment_to_string(meta.comment);
+            InlineTable{ref val, ref meta} => {
                 let mut buf = String::new();
                 buf.push_str("{");
-                for (k, v) in val.body {
-                    buf.push_str(&item.as_string());
-                    buf.push_str(", ");
+                for (i, &(ref k, ref v)) in val.body.iter().enumerate() {
+                    buf.push_str(&format!("{}{} = {}{}{}",
+                        v.meta().indent,
+                        k.clone().unwrap().as_string(),
+                        v.as_string(),
+                        v.meta().comment(),
+                        v.meta().trail));
+                    if i != val.body.len() - 1 {
+                        buf.push_str(", ");
+                    }
                 }
-                buf.push_str("]");
-                format!{"{}{}{}{}", meta.indent, buf, c, meta.trail}
+                buf.push_str("}");
+                buf
+            }
+            Str{ref t, ref val, ..} => {
+                match *t {
+                    StringType::MLB(ref s) => format!(r#"{}"#, s),
+                    StringType::SLB => format!(r#""{}""#, val),
+                    StringType::SLL => format!(r#"'{}'"#, val),
+                    StringType::MLL => format!(r#"'''{}'''"#, val),
+                }
+            }
+            AoT(ref body) => {
+                let mut b = String::new();
+                for table in body {
+                    b.push_str(&table.as_string());
+                }
+                b
             }
         } 
     }
-}
 
-fn comment_to_string(c: Option<Comment>)-> String {
-    if let Some(com) = c {
-        com.as_string()
-    } else {
-        "".to_string()
+    pub fn meta<'a>(&'a self) -> &'a LineMeta {
+        use self::Item::*;
+        match *self {
+            WS(_) | Comment(_) | AoT(_) => {
+                println!("{:?}", self);
+                panic!("Called meta on non-value Item variant");
+                }
+            Integer{ref meta, ..} |
+            Float{ref meta, ..} |
+            Bool{ref meta, ..} |
+            DateTime{ref meta, ..} |
+            Array{ref meta, ..} |
+            Table{ref meta, ..} |
+            InlineTable{ref meta, ..} |
+            Str{ref meta, ..} => meta,
+        }
+    }
+
+    pub fn meta_mut<'a>(&'a mut self) -> &'a mut LineMeta {
+        use self::Item::*;
+        match *self {
+            WS(_) | Comment(_) | AoT(_) => {
+                println!("{:?}", self);
+                panic!("Called meta on non-value Item variant");
+                }
+            Integer{ref mut meta, ..} |
+            Float{ref mut meta, ..} |
+            Bool{ref mut meta, ..} |
+            DateTime{ref mut meta, ..} |
+            Array{ref mut meta, ..} |
+            Table{ref mut meta, ..} |
+            InlineTable{ref mut meta, ..} |
+            Str{ref mut meta, ..} => meta,
+        }
     }
 }
