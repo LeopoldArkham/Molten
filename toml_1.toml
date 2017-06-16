@@ -31,7 +31,7 @@ inline = {a = true, b = true, c = false}
 
     long = "shot"
 
-[second.table]
+    [second.table]
 true = false
 list = ["Er", "mah", "Gahd!"]
 # Finish Him!

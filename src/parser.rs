@@ -98,6 +98,17 @@ impl Parser {
     /// Parses shallow AoTs
     pub fn parse_AoT(&mut self) -> (Key, Item) {
         let mut payload = Vec::new();
+
+        let start = self.idx();
+        let current = self.parse_table(true);
+
+
+        (key, Item::AoT(payload))
+    }
+
+    /// Parses shallow AoTs
+    pub fn parse_AoT_(&mut self) -> (Key, Item) {
+        let mut payload = Vec::new();
         let name = self.extract_AoT_name();
         while self.extract_AoT_name() == name {
             payload.push(self.parse_table(true).1);
@@ -151,6 +162,11 @@ impl Parser {
                     let (mut c, trail) = self.parse_comment();
                     c.comment += &trail;
                     return (Item::Comment(c), None);
+                }
+                '[' => {
+                    // self.idx = self.marker;
+                    let r = self.dispatch_table();
+                    return (r.1, Some(r.0))
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
@@ -355,6 +371,7 @@ impl Parser {
                 }
             }
             '[' => {
+                println!("In an array");
                 // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
                 self.idx += 1;
@@ -559,13 +576,6 @@ impl Parser {
         names
     }
 
-    // TODO: Better names everywhere
-    pub fn section_title_to_subsections(&mut self) -> Vec<String> {
-        let inner = self.remove_brackets();
-        let names = self.parse_section_title();
-        names.into_iter().map(String::from).collect()
-    }
-
     // TODO: Clean this for the love of Eru
     pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
         // Lands on '[' character, skip it.
@@ -576,6 +586,7 @@ impl Parser {
         self.idx += inc;
         self.mark();
 
+        // TODO: Same logic for tables and AoT names
         // Seek the end of the table's name
         while self.current() != ']' {
             // TODO: Quoted names

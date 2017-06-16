@@ -38,11 +38,19 @@ pub enum KeyType {
     Quoted,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Clone)]
 pub struct Key {
     pub t: KeyType,
     pub raw: String,
     pub actual: String,
+}
+
+impl Eq for Key {}
+
+impl PartialEq for Key {
+    fn eq(&self, other: &Key) -> bool {
+        self.actual == other.actual
+    }
 }
 
 impl Key {
