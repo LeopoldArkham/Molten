@@ -6,6 +6,7 @@ pub trait TOMLChar {
     fn is_ws(&self) -> bool;
     fn not_ws(&self) -> bool;
     fn not_whitespace_or_pound(&self) -> bool;
+    fn is_nl(&self) -> bool;
 }
 
 impl TOMLChar for char {
@@ -45,6 +46,13 @@ impl TOMLChar for char {
         match *self {
             ' ' | '\t' | '\n' | '\r' | '#' => false,
             _ => true,
+        }
+    }
+
+    fn is_nl(&self) -> bool {
+        match *self {
+            '\n' | '\r' => true,
+            _ => false,
         }
     }
 }

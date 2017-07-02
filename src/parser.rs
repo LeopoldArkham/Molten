@@ -95,19 +95,12 @@ impl Parser {
         }
     }
 
-    /// Parses shallow AoTs
-    pub fn parse_AoT(&mut self) -> (Key, Item) {
-        let mut payload = Vec::new();
-
-        let start = self.idx();
-        let current = self.parse_table(true);
-
-
-        (key, Item::AoT(payload))
+    fn is_child(&self, parent: &str, child: &str) -> bool {
+        false
     }
 
     /// Parses shallow AoTs
-    pub fn parse_AoT_(&mut self) -> (Key, Item) {
+    pub fn parse_AoT(&mut self) -> (Key, Item) {
         let mut payload = Vec::new();
         let name = self.extract_AoT_name();
         while self.extract_AoT_name() == name {
@@ -121,6 +114,7 @@ impl Parser {
         (key, Item::AoT(payload))
     }
 
+    /// Gets name of next AoT element, then resets parser position
     pub fn extract_AoT_name(&mut self) -> Option<String> {
         println!("Made it into paotn");
         let start = self.idx;
@@ -465,7 +459,6 @@ impl Parser {
     /// Attempts to parse a comment at the current position, and returns it along with
     /// the newline character. Only call this function if the presence of the pound sign
     ///  is guaranteed.
-    // TODO: WTF is "trailing"?
     fn parse_comment(&mut self) -> (Comment, String) {
         self.mark();
 
@@ -578,36 +571,62 @@ impl Parser {
 
     // TODO: Clean this for the love of Eru
     pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
-        // Lands on '[' character, skip it.
+        // Extract indent if any
+        while self.src[self.idx-1] != '\n' {
+            self.idx -= 1;
+        }
+        self.mark();
+        while self.current().is_ws() {
+            println!("Skipped ws in table indent");
+            self.idx += 1;
+        }
+        let indent = self.extract();
+        // -------------------------
+
+        // Extract the name into a key
         let inc = match array {
             false => 1,
             true => 2,
         };
         self.idx += inc;
         self.mark();
-
-        // TODO: Same logic for tables and AoT names
-        // Seek the end of the table's name
         while self.current() != ']' {
             // TODO: Quoted names
             self.idx += 1;
         }
-        
-        // Get the name
-        // TODO: Get a key from here
         let name = self.extract();
-        // println!("{}", name);
         let key = Key {
             t: KeyType::Bare,
             raw: name.clone(),
             actual: name
         };
-        // FRAGILE: Seek start of next line
-        while self.current() != '\n' {
+        // --------------------------
+        
+        // Get comment and trail
+        self.idx += inc;
+        self.mark();
+
+        let mut comment: Option<Comment> = None;
+        let mut trail = "".to_string();
+        while !self.current().is_nl() {
+            if self.current() == '#' {
+                let r = self.parse_comment();
+                comment = Some(r.0);
+                trail = r.1;
+                break;
+            }
             self.idx += 1;
         }
-        self.idx += 1;
+        if comment.is_none() {
+            while self.current().is_nl() {
+                self.idx += 1
+            }
+            trail = self.extract();
+            // self.idx += 1;
+        }
+        // --------------------------
 
+        // Parse content
         let mut values = Container::new();
         loop {
             if self.idx == self.end {
@@ -628,9 +647,9 @@ impl Parser {
                 is_array: array,
                 val: values,
                 meta: LineMeta {
-                    indent: "".to_string(),
-                    comment: None,
-                    trail: "".to_string(),
+                    indent: indent,
+                    comment: comment,
+                    trail: trail,
                 }
             }
         )

@@ -31,7 +31,7 @@ inline = {a = true, b = true, c = false}
 
     long = "shot"
 
-    [second.table]
+    [second.table]#Table comment
 true = false
 list = ["Er", "mah", "Gahd!"]
 # Finish Him!
@@ -48,6 +48,12 @@ c = 3
 [[parsethis]]
 a = 4
 inline = {a = true, b = true, c = false}
+
+[[other_AoT]]
+flag = true
+
+[[other_AoT]]
+flag = false
 
 [tableattheend]
 inline = {a = true, b = true, c = false}

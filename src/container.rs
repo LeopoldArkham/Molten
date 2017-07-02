@@ -37,7 +37,7 @@ impl Container {
                             false => ("[", "]"),
                         };
                         // TODO: Trail not trailing
-                        format!("{}{}{}{}{}{}\r\n{}",
+                        format!("{}{}{}{}{}{}{}",
                         v.meta().indent,
                         open,
                         k.unwrap().as_string(),
@@ -51,7 +51,7 @@ impl Container {
                         let key = k.unwrap().as_string();
                         // TODO: trail no worky worky here
                         for table in vec {
-                            buf.push_str(&format!("{}[[{}]]{}{}\r\n", 
+                            buf.push_str(&format!("{}[[{}]]{}{}", 
                                                   table.meta().indent,
                                                   key,
                                                   table.meta().comment(),
