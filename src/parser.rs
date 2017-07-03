@@ -116,7 +116,6 @@ impl Parser {
 
     /// Gets name of next AoT element, then resets parser position
     pub fn extract_AoT_name(&mut self) -> Option<String> {
-        println!("Made it into paotn");
         let start = self.idx;
         
         let res = match self.current() {
@@ -214,7 +213,6 @@ impl Parser {
 
         if !parse_comment || self.idx == self.end {
             if self.idx == self.end {
-                println!("Reached EOF in comment parsing");
             }
             return (val, Some(key));
         } else {
@@ -365,7 +363,6 @@ impl Parser {
                 }
             }
             '[' => {
-                println!("In an array");
                 // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
                 self.idx += 1;
@@ -399,8 +396,6 @@ impl Parser {
                 }
                 if self.idx != self.end {
                     self.idx += 1;
-                } else {
-                    println!("Reached EOF in inline table parsing");
                 }
                 Item::InlineTable {
                     val: elems,
@@ -577,7 +572,6 @@ impl Parser {
         }
         self.mark();
         while self.current().is_ws() {
-            println!("Skipped ws in table indent");
             self.idx += 1;
         }
         let indent = self.extract();

@@ -1,7 +1,6 @@
-// use std::ops::Index;
-// use std::fmt::Debug;
-
-// use tomldoc::TOMLDocument;
+use std::ops::Index;
+use tomldoc::TOMLDocument;
+use items::*;
 
 // impl Index<&'static str> for TOMLDocument {
 //     type Output =  TLV;
@@ -11,32 +10,36 @@
 //     }
 // }
 
-// impl Index<usize> for TOMLDocument {
-//     type Output =  TLV;
+impl Index<usize> for TOMLDocument {
+    type Output =  Item;
 
-//     fn index(&self,  idx: usize) -> &Self::Output {
-//         use self::TLV::*;
-//         let mut cur = 0;
-//         let mut skipped = 0;
+    fn index(&self,  idx: usize) -> &Self::Output {
+        self.0.iter().nth(idx).expect("Indexing TOMLDoc failed")
+    }
+}
 
-//         for elem in &self.0 {
-//             match elem {
-//                 &WS(_) | &Comment(_) => {
-//                     cur += 1;
-//                     skipped += 1;
-//                 }
-//                 _ => {
-//                     if cur - skipped == idx {
-//                        break;
-//                     } else {
-//                         cur += 1
-//                     }
-//                 }
-//             }
-//         }
-//         &self.0[cur]
-//     }
-// }
+impl Index<usize> for Item {
+    type Output =  Item;
+
+    fn index(&self,  idx: usize) -> &Self::Output {
+        use self::Item::*;
+        match *self {
+            Array{ref val, ..} => {
+                &val[idx]
+            }
+            Table{ref val, ..} => {
+                &val.iter().nth(idx).expect("Indexing Table failed")
+            }
+            InlineTable{ref val, ..} => {
+                &val.iter().nth(idx).expect("Indexing InlineTable failed")
+            }
+            AoT(ref vec) => {
+                &vec.iter().nth(idx).expect("Indexing AoT failed")
+            }
+            _ => panic!()
+        }
+    }
+}
 
 // pub trait IndexReturn: Debug {}
 // impl IndexReturn for Value {}
