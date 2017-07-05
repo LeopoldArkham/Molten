@@ -104,9 +104,7 @@ impl<'a> Iterator for ContainerIterator<'a> {
     // "There must be a better way"
     fn next(&mut self) -> Option<&'a Item> {
         loop {
-            println!("Before");
             if self.current == self.container.body.len() {
-                println!("Here");
                 return None
             }   
             match self.container.body[self.current].1.is_value() {

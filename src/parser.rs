@@ -35,7 +35,7 @@ impl Parser {
 
     /// Increments the parser if the end of the input has not been reached
     fn inc(&mut self) -> bool {
-        if self.idx!= self.end {
+        if self.idx != self.end {
             self.idx += 1;
             true
         } else {
@@ -43,7 +43,7 @@ impl Parser {
         }
     }
 
-    ///Sets the marker to the index's current position
+    /// Sets the marker to the index's current position
     fn mark(&mut self) {
         self.marker = self.idx;
     }
@@ -85,12 +85,8 @@ impl Parser {
 
     pub fn dispatch_table(&mut self) -> (Key, Item) {
         match self.current() {
-            '[' if self.src[self.idx + 1] == '[' => {
-                self.parse_AoT()
-            }
-            '[' => {
-                self.parse_table(false)
-            }
+            '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
+            '[' => self.parse_table(false),
             _ => panic!("Should not have entered dispatch_table()"),
         }
     }
@@ -109,7 +105,7 @@ impl Parser {
         let key = Key {
             t: KeyType::Bare,
             raw: name.clone().unwrap(),
-            actual: name.unwrap()
+            actual: name.unwrap(),
         };
         (key, Item::AoT(payload))
     }
@@ -117,14 +113,14 @@ impl Parser {
     /// Gets name of next AoT element, then resets parser position
     pub fn extract_AoT_name(&mut self) -> Option<String> {
         let start = self.idx;
-        
+
         let res = match self.current() {
-            '[' if self.src[self.idx+1] == '[' => {
+            '[' if self.src[self.idx + 1] == '[' => {
                 // Skip [[
                 self.idx += 2;
                 self.mark();
-                
-                while self.src[self.idx..self.idx+2] != [']', ']'] {
+
+                while self.src[self.idx..self.idx + 2] != [']', ']'] {
                     self.idx += 1;
                 }
                 Some(self.extract())
@@ -159,7 +155,7 @@ impl Parser {
                 '[' => {
                     // self.idx = self.marker;
                     let r = self.dispatch_table();
-                    return (r.1, Some(r.0))
+                    return (r.1, Some(r.0));
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
@@ -218,8 +214,8 @@ impl Parser {
         } else {
             // SEND HELP
             self.mark();
-            while self.idx != self.src.len() - 1 && self.current() != '#' && self.current() != '\r' &&
-                self.current() != '\n' {
+            while self.idx != self.src.len() - 1 && self.current() != '#' &&
+                  self.current() != '\r' && self.current() != '\n' {
                 self.idx += 1;
             }
 
@@ -260,17 +256,18 @@ impl Parser {
         self.mark();
         let meta: LineMeta = Default::default();
         match self.src[self.idx] {
-            '"' if (self.src[self.idx+1] == '"' && self.src[self.idx+2] == '"') => {
+            '"' if (self.src[self.idx + 1] == '"' && self.src[self.idx + 2] == '"') => {
                 // skip """
                 self.idx += 3;
                 let mut lstart = self.idx;
                 let mut actual = String::new();
 
-                while self.src[self.idx..self.idx+3] != ['"', '"', '"'] {
+                while self.src[self.idx..self.idx + 3] != ['"', '"', '"'] {
                     match self.current() {
-                        '/' if self.src[self.idx+1] == '\r' || self.src[self.idx+1] == '\n' => {
+                        '/' if self.src[self.idx + 1] == '\r' || self.src[self.idx + 1] == '\n' => {
                             if lstart != self.idx {
-                                let line = self.src[lstart..self.idx].iter().cloned().collect::<String>();
+                                let line =
+                                    self.src[lstart..self.idx].iter().cloned().collect::<String>();
                                 actual.push_str(&line);
                             }
                             self.idx += 1;
@@ -284,7 +281,7 @@ impl Parser {
                 }
                 self.idx += 2;
                 let raw = self.extract();
-                
+
                 Item::Str {
                     t: StringType::MLB(raw),
                     val: actual,
@@ -304,25 +301,25 @@ impl Parser {
                 }
                 let payload = self.extract();
                 // Clear '"'
-                self. idx += 1;
-                
+                self.idx += 1;
+
                 Item::Str {
                     t: StringType::SLB,
                     val: payload,
                     meta: meta,
                 }
             }
-            '\'' if (self.src[self.idx+1] == '\'' && self.src[self.idx+2] == '\'') => {
+            '\'' if (self.src[self.idx + 1] == '\'' && self.src[self.idx + 2] == '\'') => {
                 // Skip '''
                 self.idx += 3;
                 self.mark();
 
-                while self.src[self.idx..self.idx+3] != ['\'', '\'', '\''] {
+                while self.src[self.idx..self.idx + 3] != ['\'', '\'', '\''] {
                     self.idx += 1;
                 }
                 let payload = self.extract();
                 self.idx += 3;
-                
+
                 Item::Str {
                     t: StringType::MLL,
                     val: payload,
@@ -337,9 +334,9 @@ impl Parser {
                 while self.current() != '\'' {
                     self.idx += 1;
                 }
-                let payload  = self.extract();
+                let payload = self.extract();
                 self.idx += 1;
-                
+
                 Item::Str {
                     t: StringType::SLL,
                     val: payload,
@@ -348,7 +345,7 @@ impl Parser {
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 4;
-                
+
                 Item::Bool {
                     val: true,
                     meta: meta,
@@ -356,7 +353,7 @@ impl Parser {
             }
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
                 self.idx += 5;
-                
+
                 Item::Bool {
                     val: false,
                     meta: meta,
@@ -526,8 +523,9 @@ impl Parser {
         Key {
             t: KeyType::Quoted,
             actual: key.clone(),
-            raw: key
-        }    }
+            raw: key,
+        }
+    }
 
     pub fn parse_bare_key(&mut self) -> Key {
         self.mark();
@@ -539,7 +537,7 @@ impl Parser {
         Key {
             t: KeyType::Bare,
             actual: key.clone(),
-            raw: key
+            raw: key,
         }
     }
 
@@ -567,7 +565,7 @@ impl Parser {
     // TODO: Clean this for the love of Eru
     pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
         // Extract indent if any
-        while self.src[self.idx-1] != '\n' {
+        while self.src[self.idx - 1] != '\n' {
             self.idx -= 1;
         }
         self.mark();
@@ -592,10 +590,10 @@ impl Parser {
         let key = Key {
             t: KeyType::Bare,
             raw: name.clone(),
-            actual: name
+            actual: name,
         };
         // --------------------------
-        
+
         // Get comment and trail
         self.idx += inc;
         self.mark();
@@ -616,7 +614,6 @@ impl Parser {
                 self.idx += 1
             }
             trail = self.extract();
-            // self.idx += 1;
         }
         // --------------------------
 
@@ -629,23 +626,35 @@ impl Parser {
 
             match self.current() {
                 '[' => break,
+                ' ' | '\t' => {
+                    self.mark();
+                    while self.current().is_ws() {
+                        self.idx += 1;
+                    }
+                    match self.current() {
+                        '[' => break,
+                        _ => {
+                            self.idx = self.marker;
+                            let kv = self.parse_TLV();
+                            values.append(kv.0, kv.1);
+                        }
+                    }
+                }
                 _ => {
                     let kv = self.parse_TLV();
                     values.append(kv.0, kv.1);
                 }
             }
         }
-        (
-            key,
-            Item::Table {
-                is_array: array,
-                val: values,
-                meta: LineMeta {
-                    indent: indent,
-                    comment: comment,
-                    trail: trail,
-                }
-            }
-        )
+        (key,
+         Item::Table {
+            is_array: array,
+            val: values,
+            meta: LineMeta {
+                indent: indent,
+                comment: comment,
+                trail: trail,
+            },
+        })
     }
 }

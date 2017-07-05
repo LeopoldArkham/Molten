@@ -19,8 +19,6 @@ use std::io::prelude::*;
 
 use linked_hash_map::LinkedHashMap;
 
-// TODO: Indent on a table makes it a child of previous table
-
 #[test]
 fn toml_test_1() {
     let input = include_str!("../toml_1.toml");
@@ -31,6 +29,6 @@ fn toml_test_1() {
     let _ = f.write(res.as_string().as_bytes());
 
     // println!("{:#?}", res.0);
-    println!("{:?}", res[11][0][3]);
+    println!("{:?}", res[11].as_string());
     assert_eq!(input, &res.as_string());
 }

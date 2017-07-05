@@ -156,7 +156,6 @@ impl Item {
             },
             Table{ref val, is_array, ref meta} => {
                 val.as_string()
-                // "screw feminism".to_string()
             }
             InlineTable{ref val, ref meta} => {
                 let mut buf = String::new();
