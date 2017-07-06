@@ -450,7 +450,7 @@ impl Parser {
 
     /// Attempts to parse a comment at the current position, and returns it along with
     /// the newline character. Only call this function if the presence of the pound sign
-    ///  is guaranteed.
+    /// is guaranteed.
     fn parse_comment(&mut self) -> (Comment, String) {
         self.mark();
 
@@ -491,22 +491,6 @@ impl Parser {
 
     }
 
-    pub fn remove_brackets<'a>(&mut self) -> String {
-        // TODO: Allow brackets in quoted names
-        while self.src[self.idx] != '[' {
-            self.idx += 1;
-        }
-
-        self.idx += 1;
-        self.mark();
-
-        while self.src[self.idx] != ']' {
-            self.idx += 1;
-        }
-
-        self.extract()
-    }
-
     pub fn parse_quoted_key(&mut self) -> Key {
         // Skip "
         self.idx += 1;
@@ -539,27 +523,6 @@ impl Parser {
             actual: key.clone(),
             raw: key,
         }
-    }
-
-    pub fn parse_section_title(&mut self) -> Vec<String> {
-        // TODO: Escaped quotes in quoted table names
-        let mut in_quotes = false;
-        let mut names = Vec::new();
-        let mut current_name = String::new();
-
-        for (i, c) in self.src.iter().enumerate() {
-            match *c {
-                '"' if self.src[self.idx + 1] == '.' => in_quotes = !in_quotes,
-                '"' if self.src[self.idx - 1] == '.' => in_quotes = !in_quotes,
-                '.' if !in_quotes => {
-                    names.push(current_name.clone());
-                    current_name.drain(..);
-                }
-                chr => current_name.push(chr),
-            }
-        }
-        names.push(current_name.clone());
-        names
     }
 
     // TODO: Clean this for the love of Eru
