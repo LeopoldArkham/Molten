@@ -1,11 +1,10 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
-use index::*;
 use items::*;
 use comment::Comment;
 use container::Container;
 
-use chrono::{DateTime as ChronoDateTime, FixedOffset};
+use chrono::{DateTime as ChronoDateTime};
 
 use std::str::FromStr;
 
@@ -48,11 +47,6 @@ impl Parser {
         self.marker = self.idx;
     }
 
-    /// Sets the marker to the specified position
-    fn mark_at(&mut self, idx: usize) {
-        self.marker = idx;
-    }
-
     /// Returns the character currently pointed to by `self.idx`.
     fn current(&self) -> char {
         self.src[self.idx]
@@ -70,7 +64,7 @@ impl Parser {
                 break;
             }
             // Take and wrap one KV pair
-            let kv = self.parse_TLV();
+            let kv = self.parse_item();
             body.append(kv.0, kv.1);
         }
 
@@ -95,6 +89,7 @@ impl Parser {
         false
     }
 
+    #[allow(non_snake_case)]
     /// Parses shallow AoTs
     pub fn parse_AoT(&mut self) -> (Key, Item) {
         let mut payload = Vec::new();
@@ -110,6 +105,7 @@ impl Parser {
         (key, Item::AoT(payload))
     }
 
+    #[allow(non_snake_case)]
     /// Gets name of next AoT element, then resets parser position
     pub fn extract_AoT_name(&mut self) -> Option<String> {
         let start = self.idx;
@@ -132,7 +128,9 @@ impl Parser {
         res
     }
 
-    pub fn parse_TLV(&mut self) -> (Item, Option<Key>) {
+    /// Attempts to parse the next item and returns it, along with its key
+    /// if the item is value-like.
+    pub fn parse_item(&mut self) -> (Item, Option<Key>) {
         // Mark start of whitespace
         self.mark();
         loop {
@@ -165,21 +163,6 @@ impl Parser {
                 }
             }
         }
-    }
-
-    /// Advances the parser to the first non-whitespce character
-    /// and returns the consumed whitespace as a string.
-    pub fn take_ws(&mut self) -> Item {
-        self.mark();
-        while self.current().is_ws() {
-            self.idx += 1;
-            if self.src[self.idx] == '\n' {
-                self.idx += 1;
-                break;
-            }
-        }
-
-        Item::WS(self.extract())
     }
 
     /// Parses and returns a key/value pair.
@@ -598,13 +581,13 @@ impl Parser {
                         '[' => break,
                         _ => {
                             self.idx = self.marker;
-                            let kv = self.parse_TLV();
+                            let kv = self.parse_item();
                             values.append(kv.0, kv.1);
                         }
                     }
                 }
                 _ => {
-                    let kv = self.parse_TLV();
+                    let kv = self.parse_item();
                     values.append(kv.0, kv.1);
                 }
             }

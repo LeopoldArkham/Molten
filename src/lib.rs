@@ -2,7 +2,6 @@
 
 #[macro_use]
 extern crate pretty_assertions;
-extern crate linked_hash_map;
 extern crate chrono;
 
 mod tomlchar;
@@ -13,11 +12,9 @@ mod items;
 mod container;
 mod comment;
 
-use std::str::FromStr;
 use std::fs::File;
 use std::io::prelude::*;
 
-use linked_hash_map::LinkedHashMap;
 
 #[test]
 fn toml_test_1() {
@@ -29,6 +26,6 @@ fn toml_test_1() {
     let _ = f.write(res.as_string().as_bytes());
 
     // println!("{:#?}", res.0);
-    println!("{:?}", res[11].as_string());
+    println!("{:?}", res["table"]["broken_array"][0].as_string());
     assert_eq!(input, &res.as_string());
 }
