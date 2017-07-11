@@ -65,13 +65,13 @@ impl Parser {
             }
             // Take and wrap one KV pair
             let kv = self.parse_item();
-            body.append(kv.0, kv.1);
+            let _ = body.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
         }
 
         // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
             let (k, v) = self.dispatch_table();
-            body.append(v, k);
+            let _ = body.append(v, k).map_err(|e| panic!(e.to_string()));
         }
 
         TOMLDocument(body)
@@ -372,7 +372,7 @@ impl Parser {
                         self.idx += 1;
                     }
                     let (key, val) = self.parse_key_value(false);
-                    elems.append(key, val);
+                    let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
                 if self.idx != self.end {
                     self.idx += 1;
@@ -582,13 +582,13 @@ impl Parser {
                         _ => {
                             self.idx = self.marker;
                             let kv = self.parse_item();
-                            values.append(kv.0, kv.1);
+                            let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
                         }
                     }
                 }
                 _ => {
                     let kv = self.parse_item();
-                    values.append(kv.0, kv.1);
+                    let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
                 }
             }
         }

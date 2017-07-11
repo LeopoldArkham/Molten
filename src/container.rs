@@ -17,12 +17,16 @@ impl Container {
         }
     }
 
-    pub fn append<K: Into<Option<Key>>>(&mut self, item: Item, _key: K) {
+    pub fn append<K: Into<Option<Key>>>(&mut self, item: Item, _key: K) -> Result<(), String> {
         let key = _key.into();
         if let Some(k) = key.clone() {
+            if self.map.contains_key(&k) {
+                return Err("Cannot override existing key".to_string())
+            }
             self.map.insert(k, self.body.len());
         }
         self.body.push((key, item));
+        Ok(())
     }
 
     // Some duplication with Item::as_string() logic. I am at peace with it.
@@ -91,7 +95,6 @@ impl Container {
         }
     }
 }
-
 
 pub struct ContainerIterator<'a> {
     container: &'a Container,
