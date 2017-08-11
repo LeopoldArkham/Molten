@@ -26,6 +26,7 @@ fn toml_test_1() {
     let _ = f.write(res.as_string().as_bytes());
 
     // println!("{:#?}", res.0);
-    println!("{:?}", res["Hello"].as_string());
+    // TODO: External "as_string()" must ont contain quotes
+    println!("{}", res["Hello"].as_string());
     assert_eq!(input, &res.as_string());
 }
