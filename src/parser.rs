@@ -88,44 +88,63 @@ impl Parser {
     fn is_child(&self, parent: &str, child: &str) -> bool {
         false
     }
+ /*
+    // MOCK
+    fn wishlist(&mut self) {
+        // With body: Container
+        // Switch to table-like parsing
+        let next = self.dispatch_table();
+        // Item is not aware of its name
+        let key_next = next.0.normalize();
 
+        // Get latest item's key
+        let key_prev = body.last_item(); // Operates recursively until a container is reached whose last value is not a container 
+
+        match self.is_child(key_prev, key_next) {
+            true =>
+            false => 
+        }
+    }
+*/
     #[allow(non_snake_case)]
     /// Parses shallow AoTs
     pub fn parse_AoT(&mut self) -> (Key, Item) {
         let mut payload = Vec::new();
-        let name = self.extract_AoT_name();
-        while self.extract_AoT_name() == name {
+        let name = self.peek_table_name();
+        while self.peek_table_name() == name {
             payload.push(self.parse_table(true).1);
         }
         let key = Key {
             t: KeyType::Bare,
-            raw: name.clone().unwrap(),
-            actual: name.unwrap(),
+            raw: name.clone(),
+            actual: name,
         };
         (key, Item::AoT(payload))
     }
 
-    #[allow(non_snake_case)]
-    /// Gets name of next AoT element, then resets parser position
-    pub fn extract_AoT_name(&mut self) -> Option<String> {
-        let start = self.idx;
+    /// Peeks at a table-like element, returning its name,
+    /// and resetting the parser's position.
+    fn peek_table_name(&mut self) -> String {
+        let rewind = self.idx;
 
-        let res = match self.current() {
-            '[' if self.src[self.idx + 1] == '[' => {
-                // Skip [[
-                self.idx += 2;
-                self.mark();
+        while self.current() != '[' {
+            println!("Skipping ws before '[' in peek table name");
+            self.idx += 1;
+        }
 
-                while self.src[self.idx..self.idx + 2] != [']', ']'] {
-                    self.idx += 1;
-                }
-                Some(self.extract())
-            }
-            _ => None,
-        };
+        while self.current() == '[' {
+            self.idx += 1;
+        }
 
-        self.idx = start;
-        res
+        self.mark();
+
+        while self.current() != ']' {
+            self.idx += 1;
+        }
+
+        let r = self.extract();
+        self.idx = rewind;
+        r
     }
 
     /// Attempts to parse the next item and returns it, along with its key
@@ -192,6 +211,7 @@ impl Parser {
 
         if !parse_comment || self.idx == self.end {
             if self.idx == self.end {
+                //lolwut
             }
             return (val, Some(key));
         } else {
@@ -383,7 +403,7 @@ impl Parser {
                 }
             }
             '+' | '-' | '0'...'9' => {
-                // TODO: Clean this mess
+                // TODO: Clean this mess ffs
                 while self.idx != self.src.len() - 1 &&
                       self.src[self.idx + 1].not_whitespace_or_pound() &&
                       self.src[self.idx + 1] != ',' &&

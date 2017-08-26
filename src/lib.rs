@@ -25,8 +25,8 @@ fn toml_test_1() {
     let mut f = File::create("tomlres.toml").unwrap();
     let _ = f.write(res.as_string().as_bytes());
 
-    // println!("{:#?}", res.0);
-    // TODO: External "as_string()" must ont contain quotes
+    println!("{:#?}", res.0);
+    // TODO: External "as_string()" must not contain quotes
     println!("{}", res["Hello"].as_string());
     assert_eq!(input, &res.as_string());
 }

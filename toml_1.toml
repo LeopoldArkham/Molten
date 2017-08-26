@@ -54,6 +54,8 @@ flag = true
 
 [[other_AoT]]
 flag = false
+[[other_AoT]]
+flag = false
 
 [tableattheend]
 inline = {a = true, b = true, c = false}
