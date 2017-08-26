@@ -21,7 +21,7 @@ impl Container {
         let key = _key.into();
         if let Some(k) = key.clone() {
             if self.map.contains_key(&k) {
-                return Err("Cannot override existing key".to_string());
+                return Err(format!("Cannot override existing key: {:?}", k));
             }
             self.map.insert(k, self.body.len());
         }

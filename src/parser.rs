@@ -86,7 +86,8 @@ impl Parser {
     }
 
     fn is_child(&self, parent: &str, child: &str) -> bool {
-        false
+        // println!("parent: {}\nchild: {}\n", parent, child);
+        child != parent && child.starts_with(parent)
     }
  /*
     // MOCK
@@ -135,7 +136,7 @@ impl Parser {
         while self.current() == '[' {
             self.idx += 1;
         }
-
+        
         self.mark();
 
         while self.current() != ']' {
@@ -528,7 +529,8 @@ impl Parser {
         }
     }
 
-    // TODO: Clean this for the love of Eru
+    // @cleanup
+    // @todo: change return parameter order to match parse_item()
     pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
         // Extract indent if any
         while self.src[self.idx - 1] != '\n' {
@@ -556,7 +558,7 @@ impl Parser {
         let key = Key {
             t: KeyType::Bare,
             raw: name.clone(),
-            actual: name,
+            actual: name.clone(),
         };
         // --------------------------
 
@@ -591,14 +593,35 @@ impl Parser {
             }
 
             match self.current() {
-                '[' => break,
+                '[' => {
+                    // @incomplete: "next" could be aot
+                    // @fixme: snippet repeated below
+                    let name_next = self.peek_table_name();
+                    match self.is_child(&name, &name_next) {
+                        true => {
+                            let next = self.dispatch_table();
+                            let _ = values.append(next.1, next.0).map_err(|e| panic!(e.to_string()));
+                        }
+                        false => break,
+                    }
+                }
                 ' ' | '\t' => {
                     self.mark();
                     while self.current().is_ws() {
                         self.idx += 1;
                     }
                     match self.current() {
-                        '[' => break,
+                        '[' => {
+                            // @incomplete: "next" could be aot
+                            let name_next = self.peek_table_name();
+                            match self.is_child(&name, &name_next) {
+                                true => {
+                                    let next = self.dispatch_table();
+                                    let _ = values.append(next.1, next.0).map_err(|e| panic!(e.to_string()));
+                                }
+                                false => break,
+                            }
+                        }
                         _ => {
                             self.idx = self.marker;
                             let kv = self.parse_item();
