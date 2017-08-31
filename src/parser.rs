@@ -29,7 +29,17 @@ impl Parser {
 
     /// Extract the value between marker and index.
     fn extract(&self) -> String {
+        let end = if self.not_end() {
+            self.idx
+        } else {
+            self.idx + 1
+        };
+        self.src[self.marker..end].iter().cloned().collect::<String>()
+    }
+
+    fn extract_exact(&mut self) -> String {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+
     }
 
     /// Increments the parser if the end of the input has not been reached
@@ -40,6 +50,10 @@ impl Parser {
         } else {
             false
         }
+    }
+
+    fn not_end(&self) -> bool {
+        self.idx != self.end
     }
 
     /// Sets the marker to the index's current position
@@ -89,24 +103,7 @@ impl Parser {
         // println!("parent: {}\nchild: {}\n", parent, child);
         child != parent && child.starts_with(parent)
     }
- /*
-    // MOCK
-    fn wishlist(&mut self) {
-        // With body: Container
-        // Switch to table-like parsing
-        let next = self.dispatch_table();
-        // Item is not aware of its name
-        let key_next = next.0.normalize();
 
-        // Get latest item's key
-        let key_prev = body.last_item(); // Operates recursively until a container is reached whose last value is not a container 
-
-        match self.is_child(key_prev, key_next) {
-            true =>
-            false => 
-        }
-    }
-*/
     #[allow(non_snake_case)]
     /// Parses shallow AoTs
     pub fn parse_AoT(&mut self) -> (Key, Item) {
@@ -280,7 +277,7 @@ impl Parser {
                             }
                             lstart = self.idx;
                         }
-                        _ => self.idx += 1,
+                        _ => {self.inc();}
                     }
                 }
                 self.idx += 2;
@@ -297,15 +294,18 @@ impl Parser {
                 self.idx += 1;
                 self.mark();
 
+                // @incomplete: Needs to account for escaped backslashes
+                // Seek end of string
                 while self.src[self.idx] != '"' {
                     self.idx += 1;
                     if self.idx == self.src.len() {
                         println!("Single line string failure {:?}", &self.src[self.marker..]);
                     }
                 }
-                let payload = self.extract();
+
+                let payload = self.extract_exact();
                 // Clear '"'
-                self.idx += 1;
+                self.inc();
 
                 Item::Str {
                     t: StringType::SLB,
@@ -338,8 +338,9 @@ impl Parser {
                 while self.current() != '\'' {
                     self.idx += 1;
                 }
-                let payload = self.extract();
-                self.idx += 1;
+                let payload = self.extract_exact();
+                self.inc();
+                println!("Made it here");
 
                 Item::Str {
                     t: StringType::SLL,
@@ -348,7 +349,8 @@ impl Parser {
                 }
             }
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
-                self.idx += 4;
+                self.idx += 3;
+                self.inc();
 
                 Item::Bool {
                     val: true,
@@ -356,7 +358,8 @@ impl Parser {
                 }
             }
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
-                self.idx += 5;
+                self.idx += 4;
+                self.inc();
 
                 Item::Bool {
                     val: false,
@@ -395,22 +398,21 @@ impl Parser {
                     let (key, val) = self.parse_key_value(false);
                     let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
-                if self.idx != self.end {
-                    self.idx += 1;
-                }
+                self.inc();
                 Item::InlineTable {
                     val: elems,
                     meta: meta,
                 }
             }
             '+' | '-' | '0'...'9' => {
-                // TODO: Clean this mess ffs
+                // @bug: +x is reproduced as x
+                // @cleanup
                 while self.idx != self.src.len() - 1 &&
                       self.src[self.idx + 1].not_whitespace_or_pound() &&
                       self.src[self.idx + 1] != ',' &&
                       self.src[self.idx + 1] != ']' &&
                       self.src[self.idx + 1] != '}' {
-                    self.idx += 1;
+                    self.inc();
                 }
 
                 // TODO: Filtermap and why **?
@@ -421,7 +423,7 @@ impl Parser {
                     .collect::<String>();
 
                 // Skip last character of value being parsed
-                self.idx += 1;
+                self.inc();
 
                 // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
@@ -469,11 +471,11 @@ impl Parser {
         self.mark();
 
         // The comment itself
-        while self.current() != '\r' && self.current() != '\n' {
+        while self.not_end() && self.current() != '\r' && self.current() != '\n' {
             self.idx += 1;
         }
         let comment = self.extract();
-
+        // @fixme: May not account for spaces before newline
         self.mark();
         let trailing = match self.current() {
             '\r' => {
@@ -484,7 +486,7 @@ impl Parser {
                 self.idx += 1;
                 "\n".to_string()
             }
-            _ => unreachable!(),
+            _ => "".to_string()
         };
 
         (Comment {
@@ -551,7 +553,7 @@ impl Parser {
         self.idx += inc;
         self.mark();
         while self.current() != ']' {
-            // TODO: Quoted names
+            // @todo: Quoted names
             self.idx += 1;
         }
         let name = self.extract();
@@ -568,8 +570,13 @@ impl Parser {
 
         let mut comment: Option<Comment> = None;
         let mut trail = "".to_string();
+        
+        // Search for a comment until a newline is found
+        let rewind = self.idx;
+
         while !self.current().is_nl() {
             if self.current() == '#' {
+                self.idx = rewind;
                 let r = self.parse_comment();
                 comment = Some(r.0);
                 trail = r.1;
@@ -635,6 +642,7 @@ impl Parser {
                 }
             }
         }
+
         (key,
          Item::Table {
             is_array: array,

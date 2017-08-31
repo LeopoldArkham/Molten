@@ -11,7 +11,7 @@ multi = """/
            dolor sit /
            amet./
            """# Comment from hell
-singleL = 'Vulnerant omnes, ultima necat'
+#singleL = 'Vulnerant omnes, ultima necat'
 multiL = '''
     Sic
     Semper
@@ -31,9 +31,12 @@ inline = {a = true, b = true, c = false}
 
     long = "shot"
 
-    [table.nested]
+    [table.nested]      #Nesting works
     value = 1
     other_value = 2
+
+    [table.nested.twice]
+    test = "Hi"
 
     [second.table]#Table comment
 true = false
@@ -66,4 +69,8 @@ flag = false
 flag = false
 
 [tableattheend]
-inline = {a = true, b = true, c = false}
+inline = {a = true, b = true, c = false} # test
+val = -1
+flag = true
+name = "Patapouf"
+short = 'poupouf'

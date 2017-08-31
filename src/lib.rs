@@ -27,7 +27,7 @@ fn toml_test_1() {
 
     // println!("{:#?}", res.0);
     // TODO: External "as_string()" must not contain quotes
-    println!("{:?}", res["parsethis"][0]["parsethis.sub"][1].as_string()); 
+    println!("{:?}", res["table"]["table.nested"]["table.nested.twice"][0].as_string());
     // @fixme: as_string function is inadequate for anything but internally 
     // reproducing original input, as it omits the key of the value being displayed.
     assert_eq!(input, &res.as_string());
