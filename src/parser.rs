@@ -322,7 +322,9 @@ impl Parser {
                     self.idx += 1;
                 }
                 let payload = self.extract();
-                self.idx += 3;
+                // Two slashes guaranteed
+                self.idx += 2;
+                self.inc();
 
                 Item::Str {
                     t: StringType::MLL,
@@ -381,7 +383,7 @@ impl Parser {
                     elems.push(val);
                     assert_eq!(elems[0].discriminant(), check);
                 }
-                self.idx += 1;
+                self.inc();
                 Item::Array {
                     val: elems,
                     meta: meta,

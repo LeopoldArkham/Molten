@@ -72,5 +72,13 @@ flag = false
 inline = {a = true, b = true, c = false} # test
 val = -1
 flag = true
-name = "Patapouf"
-short = 'poupouf'
+name_1 = "Patapouf"
+name_2 = 'Poupouf'
+name_3 = """Patapouf/
+/
+"""
+name_4 = '''Poupouf'''
+array = ["test", "test", "test"]
+a_date = 1979-05-27T00:32:00.999999-07:00
+
+[empty_table]
