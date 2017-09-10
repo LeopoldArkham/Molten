@@ -25,10 +25,11 @@ fn toml_test_1() {
     let mut f = File::create("tomlres.toml").unwrap();
     let _ = f.write(res.as_string().as_bytes());
 
-    // println!("{:#?}", res.0);
+    println!("{:#?}", res.0);
     // TODO: External "as_string()" must not contain quotes
-    println!("{:?}", res["table"]["table.nested"]["table.nested.twice"][0].as_string());
-    // @fixme: as_string function is inadequate for anything but internally 
+    println!("{:?}",
+             res["table"]["table.nested"]["table.nested.twice"][0].as_string());
+    // @fixme: as_string function is inadequate for anything but internally
     // reproducing original input, as it omits the key of the value being displayed.
     assert_eq!(input, &res.as_string());
 }

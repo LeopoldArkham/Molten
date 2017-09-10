@@ -82,3 +82,5 @@ array = ["test", "test", "test"]
 a_date = 1979-05-27T00:32:00.999999-07:00
 
 [empty_table]
+      
+# a comment
