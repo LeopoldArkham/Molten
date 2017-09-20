@@ -268,6 +268,7 @@ impl Parser {
         self.mark();
         let meta: LineMeta = Default::default();
         match self.src[self.idx] {
+            // Multi Line Basic String
             '"' if (self.src[self.idx + 1] == '"' && self.src[self.idx + 2] == '"') => {
                 // skip """
                 self.idx += 3;
@@ -302,6 +303,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Single Line Basic String
             '"' => {
                 // skip '"' and mark
                 self.idx += 1;
@@ -326,6 +328,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Multi Line literal String
             '\'' if (self.src[self.idx + 1] == '\'' && self.src[self.idx + 2] == '\'') => {
                 // Skip '''
                 self.idx += 3;
@@ -345,6 +348,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Single Line literal String
             '\'' => {
                 // Skip '
                 self.idx += 1;
@@ -362,6 +366,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Boolean: true
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 3;
                 self.inc();
@@ -371,6 +376,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Boolean: False
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
                 self.idx += 4;
                 self.inc();
@@ -380,6 +386,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Array
             '[' => {
                 // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
@@ -401,6 +408,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Inline Table
             '{' => {
                 let mut elems: Container = Container::new();
                 self.idx += 1;
@@ -418,8 +426,8 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
-                // @bug: +x is reproduced as x
                 // @cleanup
                 while self.idx != self.src.len() - 1 &&
                       self.src[self.idx + 1].not_whitespace_or_pound() &&
@@ -429,26 +437,28 @@ impl Parser {
                     self.inc();
                 }
 
-                // TODO: Filtermap and why **?
-                let clean: String = self.src[self.marker..self.idx + 1]
-                    .iter()
-                    .filter(|c| **c != '_')
-                    .cloned()
-                    .collect::<String>();
-
-                // Skip last character of value being parsed
                 self.inc();
+                let raw = self.extract();
+
+                let clean: String = raw
+                    .chars()
+                    .filter(|c| *c != '_' && *c != ' ')
+                    .collect::<String>();
 
                 // Ask forgiveness, not permission
                 if let Ok(res) = i64::from_str(&clean) {
                     return Item::Integer {
                         val: res,
                         meta: meta,
+                        raw: raw
                     };
                 } else if let Ok(res) = f64::from_str(&clean) {
+                    // @incomplete: "Similar to integers, you may use underscores to enhance readability.
+                    // Each underscore must be surrounded by at least one digit."
                     return Item::Float {
                         val: res,
                         meta: meta,
+                        raw: raw,
                     };
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
                     return Item::DateTime {
@@ -458,10 +468,12 @@ impl Parser {
                     };
                 }
 
+                // @incomplete: Error management
                 println!("working on: {:?}", clean);
                 panic!("Could not parse to int, float or DateTime");
             }
             _ => {
+                // @incomplete: Error management
                 println!("Current: {}", self.current());
                 panic!("Could not infer type of value being parsed");
             }

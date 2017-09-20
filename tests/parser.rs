@@ -2,17 +2,25 @@
 
 extern crate Molten;
 extern crate test_case_derive;
+#[macro_use]
 extern crate pretty_assertions;
 
-
+#[allow(unused_imports)]
+use std::io::Read;
 use std::path::Path;
 use std::fs::File;
-use std::io::prelude::*;
 use std::fmt::Display;
 
 use test_case_derive::test_case;
 
-#[test_case("toml_1.toml" :: "toml_1")]
+// @incomplete: Full array compliance
+// @incomplete: Comments in arrays
+
+#[test_case("tests/full.toml" :: "Full")]
+#[test_case("tests/integers.toml" :: "Integers")]
+#[test_case("tests/floats.toml" :: "Floats")]
+#[test_case("tests/bools.toml" :: "Bools")]
+#[test_case("tests/arrays.toml" :: "Arrays")]
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 

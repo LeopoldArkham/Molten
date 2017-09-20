@@ -66,10 +66,11 @@ impl Key {
 
 #[derive(Debug, Clone)]
 pub enum Item {
+    // @todo: Move comment struct content here. Also display logic
     WS(String),
     Comment(Comment),
-    Integer { val: i64, meta: LineMeta },
-    Float { val: f64, meta: LineMeta },
+    Integer { val: i64, meta: LineMeta, raw: String },
+    Float { val: f64, meta: LineMeta, raw: String },
     Bool { val: bool, meta: LineMeta },
     DateTime {
         val: ChronoDateTime<FixedOffset>,
@@ -102,7 +103,6 @@ impl Item {
 
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
-        // TODO: Move comment struct content here. Also display logic
         match *self {
             WS(_) => 0,
             Comment(_) => 1,
@@ -123,8 +123,8 @@ impl Item {
         match *self {
             WS(ref s) => s.clone(),
             Comment(ref c) => c.as_string(),
-            Integer { val, .. } => format!("{}", val),
-            Float { val, .. } => format!("{}", val),
+            Integer { ref raw, .. } => format!("{}", raw),
+            Float { ref raw, .. } => format!("{}", raw),
             Bool { val, .. } => format!("{}", val),
             DateTime { ref raw, .. } => format!("{}", raw),
             Array { ref val, .. } => {
