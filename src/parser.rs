@@ -39,12 +39,10 @@ impl Parser {
 
     fn extract_exact(&mut self) -> String {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
-
     }
 
     fn extract_inclusive(&mut self) -> String {
         self.src[self.marker..self.idx+1].iter().cloned().collect::<String>()
-
     }
 
     /// Increments the parser if the end of the input has not been reached
@@ -635,7 +633,6 @@ impl Parser {
         // --------------------------
         println!("Made it here: {}", name);
         // Parse content
-        let mut values = Container::new();
         loop {
             match self.current() {
                 '[' => {

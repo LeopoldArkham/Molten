@@ -1,5 +1,4 @@
 pub trait TOMLChar {
-    // TODO Add validators for each key/value scheme
     fn is_bare_key_char(&self) -> bool;
     fn is_ws_or_equal(&self) -> bool;
     fn is_int_float_char(&self) -> bool;
