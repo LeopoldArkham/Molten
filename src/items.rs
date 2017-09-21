@@ -118,6 +118,23 @@ impl Item {
         }
     }
 
+    pub(crate) fn is_homogeneous(&self) -> bool {
+        use std::collections::HashSet;
+        match *self {
+            Item::Array{ref val, ..} => {
+                let t = val.iter().filter_map(|it| {
+                    match it {
+                        &Item::WS(_) | &Item::Comment(_) => {None}
+                        _ => {Some(it.discriminant())}
+                    }
+                }).collect::<HashSet<_>>().len();
+                t == 1
+
+            }
+            _ => unreachable!(),
+        }
+    }
+
     pub fn as_string(&self) -> String {
         use self::Item::*;
         match *self {
@@ -130,11 +147,8 @@ impl Item {
             Array { ref val, .. } => {
                 let mut buf = String::new();
                 buf.push_str("[");
-                for (i, item) in val.iter().enumerate() {
+                for item in val.iter() {
                     buf.push_str(&item.as_string());
-                    if i != val.len() - 1 {
-                        buf.push_str(", ");
-                    }
                 }
                 buf.push_str("]");
                 buf

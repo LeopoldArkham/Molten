@@ -41,6 +41,7 @@ impl Parser {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
     }
 
+    // @todo: does this break on eof?
     fn extract_inclusive(&mut self) -> String {
         self.src[self.marker..self.idx+1].iter().cloned().collect::<String>()
     }
@@ -267,7 +268,7 @@ impl Parser {
     pub fn parse_val(&mut self) -> Item {
         self.mark();
         let meta: LineMeta = Default::default();
-        match self.src[self.idx] {
+        match self.current() {
             // Multi Line Basic String
             '"' if (self.src[self.idx + 1] == '"' && self.src[self.idx + 2] == '"') => {
                 // skip """
@@ -294,9 +295,14 @@ impl Parser {
                         }
                     }
                 }
-                self.idx += 2;
-                let raw = self.extract();
+                println!("{}", self.src[self.idx..self.idx + 3].iter().collect::<String>());
 
+                self.inc();
+                self.inc();
+                self.inc();
+                let raw = self.extract();
+                
+                // @incomplete: fix linemeta situation here
                 Item::Str {
                     t: StringType::MLB(raw),
                     val: actual,
@@ -388,24 +394,37 @@ impl Parser {
             }
             // Array
             '[' => {
+                // @incomplete: Must allow comments here as well
+                // Move comment branching logic in parse_val?
+
                 // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
-                self.idx += 1;
+                self.inc();
 
-                while self.src[self.idx] != ']' {
-                    while self.src[self.idx].is_ws() || self.src[self.idx] == ',' {
-                        self.idx += 1;
+                while self.current() != ']' {
+                    // WS and separators being skipped here
+                    self.mark();
+                    while self.current().is_ws() || self.current() == ',' {
+                        self.inc();
                     }
-                    let val = self.parse_val();
-                    // self.idx += 1;
-                    let check = val.discriminant();
-                    elems.push(val);
-                    assert_eq!(elems[0].discriminant(), check);
+                    if self.idx != self.marker {
+                        elems.push(Item::WS(self.extract_exact()));
+                    }
+
+                    if self.current() == ']' {break;}
+                    elems.push(self.parse_val());
                 }
                 self.inc();
-                Item::Array {
+
+                let res = Item::Array {
                     val: elems,
                     meta: meta,
+                };
+
+                if res.is_homogeneous() {
+                    res
+                } else {
+                    panic!("Non homogeneous array");
                 }
             }
             // Inline Table
@@ -429,16 +448,18 @@ impl Parser {
             // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
                 // @cleanup
-                while self.idx != self.src.len() - 1 &&
-                      self.src[self.idx + 1].not_whitespace_or_pound() &&
-                      self.src[self.idx + 1] != ',' &&
-                      self.src[self.idx + 1] != ']' &&
-                      self.src[self.idx + 1] != '}' {
-                    self.inc();
+                while self.current().not_whitespace_or_pound() &&
+                      self.current() != ',' &&
+                      self.current() != ']' &&
+                      self.current() != '}' &&
+                      self.inc() {}
+                // EOF shittiness
+                match self.current() {
+                    '0'...'9' => {}
+                    _ => {self.idx -= 1;}
                 }
-
+                let raw = self.extract_inclusive();
                 self.inc();
-                let raw = self.extract();
 
                 let clean: String = raw
                     .chars()
@@ -469,12 +490,12 @@ impl Parser {
                 }
 
                 // @incomplete: Error management
-                println!("working on: {:?}", clean);
+                println!("working on: {:?}", raw);
                 panic!("Could not parse to int, float or DateTime");
             }
             _ => {
                 // @incomplete: Error management
-                println!("Current: {}", self.current());
+                println!("Current: {}", self.src[self.idx..].iter().collect::<String>());
                 panic!("Could not infer type of value being parsed");
             }
         }
