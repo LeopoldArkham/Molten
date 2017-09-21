@@ -69,8 +69,16 @@ pub enum Item {
     // @todo: Move comment struct content here. Also display logic
     WS(String),
     Comment(Comment),
-    Integer { val: i64, meta: LineMeta, raw: String },
-    Float { val: f64, meta: LineMeta, raw: String },
+    Integer {
+        val: i64,
+        meta: LineMeta,
+        raw: String,
+    },
+    Float {
+        val: f64,
+        meta: LineMeta,
+        raw: String,
+    },
     Bool { val: bool, meta: LineMeta },
     DateTime {
         val: ChronoDateTime<FixedOffset>,
@@ -121,13 +129,17 @@ impl Item {
     pub(crate) fn is_homogeneous(&self) -> bool {
         use std::collections::HashSet;
         match *self {
-            Item::Array{ref val, ..} => {
-                let t = val.iter().filter_map(|it| {
-                    match it {
-                        &Item::WS(_) | &Item::Comment(_) => {None}
-                        _ => {Some(it.discriminant())}
-                    }
-                }).collect::<HashSet<_>>().len();
+            Item::Array { ref val, .. } => {
+                let t = val.iter()
+                    .filter_map(|it| {
+                        match it {
+                            &Item::WS(_) |
+                            &Item::Comment(_) => None,
+                            _ => Some(it.discriminant()),
+                        }
+                    })
+                    .collect::<HashSet<_>>()
+                    .len();
                 t == 1
 
             }
@@ -153,8 +165,8 @@ impl Item {
                 buf.push_str("]");
                 buf
             }
-            Table { ref val, is_array, ref meta } => val.as_string(),
-            InlineTable { ref val, ref meta } => {
+            Table { ref val, ..} => val.as_string(),
+            InlineTable { ref val, ..} => {
                 let mut buf = String::new();
                 buf.push_str("{");
                 for (i, &(ref k, ref v)) in val.body.iter().enumerate() {

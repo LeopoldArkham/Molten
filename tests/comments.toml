@@ -1,0 +1,9 @@
+# A comment at the top
+val1 = true
+
+# A comment followed by whitespace
+
+
+val2 = false #A comment on a KeyValue pair
+
+# An EOF comment

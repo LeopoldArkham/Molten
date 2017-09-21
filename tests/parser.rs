@@ -6,7 +6,7 @@ extern crate test_case_derive;
 extern crate pretty_assertions;
 
 #[allow(unused_imports)]
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::fs::File;
 use std::fmt::Display;
@@ -21,6 +21,7 @@ use test_case_derive::test_case;
 #[test_case("tests/floats.toml" :: "Floats")]
 #[test_case("tests/bools.toml" :: "Bools")]
 #[test_case("tests/arrays.toml" :: "Arrays")]
+#[test_case("tests/comments.toml" :: "Comments")]
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
@@ -29,6 +30,9 @@ fn parser<P: AsRef<Path> + Display>(path: P) {
 
     let mut parser = Molten::parser::Parser::new(&input);
     let res = parser.parse();
+
+    let mut f = File::create("tests/res.toml").unwrap();
+    f.write(res.as_string().as_bytes()).unwrap();
 
     assert_eq!(input, res.as_string());
 }
