@@ -12,3 +12,5 @@ mod index;
 mod items;
 mod container;
 mod comment;
+
+// @todo: make sure arr6 in arrays.toml parsed correctly

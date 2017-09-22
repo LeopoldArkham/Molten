@@ -31,8 +31,5 @@ fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut parser = Molten::parser::Parser::new(&input);
     let res = parser.parse();
 
-    let mut f = File::create("tests/res.toml").unwrap();
-    f.write(res.as_string().as_bytes()).unwrap();
-
     assert_eq!(input, res.as_string());
 }
