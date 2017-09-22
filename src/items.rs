@@ -165,8 +165,8 @@ impl Item {
                 buf.push_str("]");
                 buf
             }
-            Table { ref val, ..} => val.as_string(),
-            InlineTable { ref val, ..} => {
+            Table { ref val, .. } => val.as_string(),
+            InlineTable { ref val, .. } => {
                 let mut buf = String::new();
                 buf.push_str("{");
                 for (i, &(ref k, ref v)) in val.body.iter().enumerate() {

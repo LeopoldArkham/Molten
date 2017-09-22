@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![feature(inclusive_range_syntax, range_contains)]
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -12,5 +13,3 @@ mod index;
 mod items;
 mod container;
 mod comment;
-
-// @todo: make sure arr6 in arrays.toml parsed correctly

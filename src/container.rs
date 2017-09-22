@@ -35,7 +35,7 @@ impl Container {
         for (k, v) in self.body.clone().into_iter() {
             let cur: String = if k.is_some() {
                 match v {
-                    Item::Table {is_array, ..} => {
+                    Item::Table { is_array, .. } => {
                         let (open, close) = match is_array {
                             true => ("[[", "]]"),
                             false => ("[", "]"),

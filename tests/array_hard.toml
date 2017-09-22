@@ -1,0 +1,6 @@
+hardone = [
+    true,
+    false,     #pretty comment
+    true,
+    false
+]

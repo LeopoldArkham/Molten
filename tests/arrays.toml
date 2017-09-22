@@ -1,9 +1,9 @@
-arr1 = [ 1, 2, 3 ]
+arr1 = [1, 2, 3, ]
 arr2 = [ "red", "yellow", "green" ] 
 arr3 = [ [ 1, 2 ], [3, 4, 5] ]
 arr4 = [ "ll", 'strings', """are the same""", '''type''' ]
 arr5 = [ [ 1, 2 ], ["ba", "b", "c"] ]
 arr6 = [1,
 2, 3, 
-3]
-arr7 = [3] 
+4 ]
+arr8 = [3] 

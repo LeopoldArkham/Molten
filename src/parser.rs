@@ -222,29 +222,51 @@ impl Parser {
     }
 
     pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
+        // if self.current() != ' ' {panic!("Called parcotrai on non ws");}
         let mut comment = None;
         self.mark();
 
-        while !self.current().is_nl() {
-            if self.current() == '#' {
-                self.idx = self.marker;
-                comment = Some(self.parse_comment()); // Ends on first NL or last char of comment if EOF
-                self.mark();
-                break;
+        loop {
+            match self.current() {
+                '\n' => break,
+                '#' => {
+                    self.idx = self.marker;
+                    comment = Some(self.parse_comment()); // Ends on first NL or last char if EOF
+                    self.mark();
+                    break;
+                }
+                ' ' | '\t' | '\r' | ',' => {self.inc();}
+                _ => break
             }
-            if !self.inc() {
-                break;
-            }
+            if self.end() {break;}
         }
-        while !self.current().is_nl() && self.inc() {}
-        if self.current() == '\r' {self.inc();}
-        if self.current() == '\n' {self.inc();}
+
+        // while !self.end() && self.current().is_ws() && !self.current().is_nl() {
+        //     if self.current() == '#' {
+        //         self.idx = self.marker;
+        //         comment = Some(self.parse_comment()); // Ends on first NL or last char if EOF
+        //         self.mark();
+        //         break;
+        //     }
+        //     // if !self.inc() {
+        //     //     break;
+        //     // }
+        //     self.inc();
+        // }
+        while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
+        if self.current() == '\r' {
+            self.inc();
+        }
+        if self.current() == '\n' {
+            self.inc();
+        }
 
         let trail = if self.idx != self.marker || self.current().is_ws() {
             self.extract()
         } else {
             "".to_string()
         };
+        println!("Trail: {:?}", trail);
         (comment, trail)
     }
 
@@ -411,15 +433,10 @@ impl Parser {
             }
             // Array
             '[' => {
-                // @incomplete: Must allow comments here as well
-                // Move comment branching logic in parse_val?
-
-                // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
                 self.inc();
 
                 while self.current() != ']' {
-                    // WS and separators being skipped here
                     self.mark();
                     while self.current().is_ws() || self.current() == ',' {
                         self.inc();
@@ -427,14 +444,17 @@ impl Parser {
                     if self.idx != self.marker {
                         elems.push(Item::WS(self.extract_exact()));
                     }
-
-                    if self.current() == ']' {
-                        break;
-                    }
-                    elems.push(self.parse_val());
+                    if self.current() == ']' { break; }
+                    let next = match self.current() {
+                        '#' => Item::Comment(self.parse_comment()),
+                        _ => self.parse_val(),
+                    };
+                    elems.push(next);
                 }
                 self.inc();
 
+                // @cleanup: Add Item::is_homogeneous() to operate on elems
+                // and refactor below; ---
                 let res = Item::Array {
                     val: elems,
                     meta: meta,
@@ -474,12 +494,10 @@ impl Parser {
                       self.current() != ']' && self.current() != '}' &&
                       self.inc() {}
                 // EOF shittiness
-                match self.current() {
-                    '0'...'9' => {}
-                    _ => {
-                        self.idx -= 1;
-                    }
+                if !('0'...'9').contains(self.current()) {
+                    self.idx -= 1;
                 }
+
                 let raw = self.extract_inclusive();
                 self.inc();
 
@@ -487,7 +505,7 @@ impl Parser {
                     .filter(|c| *c != '_' && *c != ' ')
                     .collect::<String>();
 
-                // Ask forgiveness, not permission
+                // Forgiveness > Permission
                 if let Ok(res) = i64::from_str(&clean) {
                     return Item::Integer {
                         val: res,
@@ -495,8 +513,8 @@ impl Parser {
                         raw: raw,
                     };
                 } else if let Ok(res) = f64::from_str(&clean) {
-                    // @incomplete: "Similar to integers, you may use underscores to enhance readability.
-                    // Each underscore must be surrounded by at least one digit."
+                    // @incomplete: "Similar to integers, you may use underscores to enhance
+                    // readability. Each underscore must be surrounded by at least one digit."
                     return Item::Float {
                         val: res,
                         meta: meta,
@@ -516,8 +534,8 @@ impl Parser {
             }
             _ => {
                 // @incomplete: Error management
-                // println!("Current: {}",
-                        //  self.src[self.idx..].iter().collect::<String>());
+                println!("Current: {}",
+                         self.src[self.idx..].iter().collect::<String>());
                 panic!("Could not infer type of value being parsed");
             }
         }
@@ -645,7 +663,7 @@ impl Parser {
         }
 
         // --------------------------
-        
+
         // Parse content
         loop {
             match self.current() {
