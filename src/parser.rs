@@ -240,19 +240,6 @@ impl Parser {
             }
             if self.end() {break;}
         }
-
-        // while !self.end() && self.current().is_ws() && !self.current().is_nl() {
-        //     if self.current() == '#' {
-        //         self.idx = self.marker;
-        //         comment = Some(self.parse_comment()); // Ends on first NL or last char if EOF
-        //         self.mark();
-        //         break;
-        //     }
-        //     // if !self.inc() {
-        //     //     break;
-        //     // }
-        //     self.inc();
-        // }
         while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
         if self.current() == '\r' {
             self.inc();

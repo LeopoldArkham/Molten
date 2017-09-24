@@ -22,7 +22,7 @@ use test_case_derive::test_case;
 #[test_case("tests/bools.toml" :: "Bools")]
 #[test_case("tests/arrays.toml" :: "Arrays")]
 #[test_case("tests/comments.toml" :: "Comments")]
-#[test_case("tests/array_hard.toml" :: "Hard array")]
+#[test_case("tests/inline_tables.toml" :: "Inline Tables")]
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
@@ -33,6 +33,7 @@ fn parser<P: AsRef<Path> + Display>(path: P) {
     let res = parser.parse();
 
     let mut f = File::create("tests/res.toml").unwrap();
+    // println!("{:#?}", res);
     let _ = f.write(res.as_string().as_bytes()).unwrap();
 
     assert_eq!(input, res.as_string());

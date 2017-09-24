@@ -3,4 +3,4 @@ hardone = [
     false,     #pretty comment
     true,
     false
-]
+] # Other comment

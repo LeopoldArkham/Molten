@@ -7,3 +7,9 @@ arr6 = [1,
 2, 3, 
 4 ]
 arr8 = [3] 
+arr9 = [
+    true,
+    false,     #pretty comment
+    true,
+    false
+] # Final comment
