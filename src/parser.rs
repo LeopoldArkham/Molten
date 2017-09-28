@@ -19,11 +19,17 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser from a string.
     pub fn new(input: &str) -> Parser {
+        let end = if input.is_empty() {
+            0
+        } else {
+            input.len() - 1 as usize
+        };
         Parser {
             src: input.chars().collect::<Vec<char>>(),
             idx: 0,
             marker: 0,
-            end: input.len() - 1 as usize,
+            end: end,
+            cache: Vec::with_capacity(20),
         }
     }
 
@@ -161,11 +167,11 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return (Item::WS(self.extract()), None);
+                    return (None, Item::WS(self.extract()));
                 }
                 // EOF ws
                 ' ' | '\t' if self.end() => {
-                    return (Item::WS(self.extract()), None);
+                    return (None, Item::WS(self.extract()));
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -175,13 +181,11 @@ impl Parser {
                     let (c, trail) = self.parse_comment_trail();
                     let mut c = c.expect("There really should be a comment here - parse_item()");
                     c.comment += &trail;
-                    return (Item::Comment(c), None);
+                    return (None, Item::Comment(c));
                 }
                 '[' => {
-                    println!("Found table!");
-                    self.idx = self.marker;
                     let r = self.dispatch_table();
-                    return (r.1, Some(r.0));
+                    return (r.0.into(), r.1);
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
