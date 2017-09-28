@@ -195,7 +195,6 @@ impl Parser {
         self.mark();
 
         // The comment itself
-        // @fixme: Comment on EOF
         while self.not_end() && !self.current().is_nl() {
             self.idx += 1;
         }
@@ -245,39 +244,31 @@ impl Parser {
         (comment, trail)
     }
 
+    fn parse_key(&mut self) -> Key {
+        match self.current() {
+            '"' => self.parse_quoted_key(),
+            _ => self.parse_bare_key(),
+        }
+    }
+
     /// Parses and returns a key/value pair.
     pub fn parse_key_value(&mut self, parse_comment: bool) -> (Option<Key>, Item) {
         self.mark();
-
-        // Extract indentation
-        while self.current().is_spaces() {
-            self.idx += 1;
-        }
+        while self.current().is_spaces() && self.inc() {}
         let indent = self.extract();
-
-        // Dispatch on key type
-        // @cleanup: Separate function
-        let key = match self.src[self.idx] {
-            '"' => self.parse_quoted_key(),
-            _ => self.parse_bare_key(),
-        };
-
-        // Skip = and whitespace
+        
+        let key = self.parse_key();
         // @incomplete: Extract for full KV reproduction
-        while self.src[self.idx].is_ws_or_equal() {
-            self.idx += 1;
-        }
+        while self.current().is_ws_or_equal() && self.inc() {}
 
-        // Parse value
         let mut val = self.parse_val();
-        println!("Calling meta_mut on: {}", val.discriminant() );
-        val.meta_mut().indent = indent;
-        // Handle end of line
         if parse_comment {
             let (comment, trail) = self.parse_comment_trail();
             val.meta_mut().comment = comment;
             val.meta_mut().trail = trail;
         }
+        val.meta_mut().indent = indent;
+
         (Some(key), val)
     }
 
@@ -430,8 +421,6 @@ impl Parser {
                 }
                 self.inc();
 
-                // @cleanup: Add Item::is_homogeneous() to operate on elems
-                // and refactor below; ---
                 let res = Item::Array {
                     val: elems,
                     meta: meta,
@@ -455,8 +444,8 @@ impl Parser {
                     let (key, val) = self.parse_key_value(false);
                     let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
-                // @knob
                 self.inc();
+                
                 Item::InlineTable {
                     val: elems,
                     meta: meta,
@@ -464,10 +453,8 @@ impl Parser {
             }
             // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
-                // @cleanup
-                while self.current().not_whitespace_or_pound() && self.current() != ',' &&
-                      self.current() != ']' && self.current() != '}' &&
-                      self.inc() {}
+                while self.current().not_in(" \t\n\r#,]}") && self.inc() {}
+                
                 // EOF shittiness
                 if !('0'...'9').contains(self.current()) {
                     self.idx -= 1;
@@ -579,10 +566,8 @@ impl Parser {
 
         // Key
         self.mark();
-        while self.current() != ']' {
-            // @todo: Quoted names
-            self.idx += 1;
-        }
+        while self.current() != ']' && self.inc() {}
+
         let name = self.extract_exact();
         let key = Key {
             t: KeyType::Bare,
@@ -598,19 +583,19 @@ impl Parser {
         let (comment, trail) = self.parse_comment_trail();
 
         let mut values = Container::new();
-        // @todo: cache parsed tables instead of rewinding
+        // @todo: cache parsed tables instead of rewinding.
+        // Maybe cache in a map by start index?
         while !self.end() {
             let rewind = self.idx;
             let (key, item) = self.parse_item();
-
+            
             if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
-                println!("Caching {}", key.as_ref().unwrap().as_string());
                 self.idx = rewind;
                 break;
             }
             let _ = values.append(key, item).map_err(|e| panic!(e.to_string()));
         }
-        println!("Returning {}", &name.clone());
+
         (key,
          Item::Table {
             is_array: is_array,

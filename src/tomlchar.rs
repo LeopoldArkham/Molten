@@ -8,6 +8,7 @@ pub trait TOMLChar {
     fn is_nl(&self) -> bool;
     // @cleanup: replace is_ws with this
     fn is_spaces(&self) -> bool;
+    fn not_in(&self, list: &str) -> bool;
 }
 
 impl TOMLChar for char {
@@ -62,5 +63,14 @@ impl TOMLChar for char {
             ' ' | '\t' => true,
             _ => false,
         }
+    }
+
+    fn not_in(&self, list: &str) -> bool {
+        for ch in list.chars() {
+            if *self == ch {
+                return false;
+            }
+        }
+        true
     }
 }

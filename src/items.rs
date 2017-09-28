@@ -32,7 +32,8 @@ impl LineMeta {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-// TODO: Store raw in enum variant
+// @todo: Store raw in enum variant
+// @ todo: Read ABNF for keys
 pub enum KeyType {
     Bare,
     Quoted,

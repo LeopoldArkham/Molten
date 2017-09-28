@@ -4,9 +4,8 @@ use items::*;
 
 #[derive(Debug, Clone)]
 pub struct Container {
-    // TODO: remove pub after implementing iterator methods
-    pub map: HashMap<Key, usize>,
-    pub body: Vec<(Option<Key>, Item)>,
+    pub(crate) map: HashMap<Key, usize>,
+    pub(crate) body: Vec<(Option<Key>, Item)>,
 }
 
 impl Container {
@@ -29,7 +28,7 @@ impl Container {
         Ok(())
     }
 
-    // Some duplication with Item::as_string() logic. I am at peace with it.
+    // @cleanup: minimize duplication with Item::as_string()
     pub fn as_string(&self) -> String {
         let mut s = String::new();
         for (k, v) in self.body.clone().into_iter() {
@@ -40,7 +39,6 @@ impl Container {
                             true => ("[[", "]]"),
                             false => ("[", "]"),
                         };
-                        // TODO: Trail not trailing
                         format!("{}{}{}{}{}{}{}",
                         v.meta().indent,
                         open,
@@ -53,7 +51,6 @@ impl Container {
                     Item::AoT(vec) => {
                         let mut buf = String::new();
                         let key = k.unwrap().as_string();
-                        // TODO: trail no worky worky here
                         for table in vec {
                             buf.push_str(&format!("{}[[{}]]{}{}",
                                                   table.meta().indent,
@@ -104,7 +101,7 @@ pub struct ContainerIterator<'a> {
 impl<'a> Iterator for ContainerIterator<'a> {
     type Item = &'a Item;
 
-    // "There must be a better way"
+    // @cleanup: "There must be a better way"
     fn next(&mut self) -> Option<&'a Item> {
         loop {
             if self.current == self.container.body.len() {
