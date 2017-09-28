@@ -1,0 +1,18 @@
+[first]
+yes = true
+no = false
+
+    [second]
+    one = 1
+    two = 2
+
+    [second.inner]
+    pi = 3.14
+
+[first.inner]
+days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+[empty]
+
+[last]
+the = "end"

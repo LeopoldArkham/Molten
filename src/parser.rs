@@ -74,7 +74,7 @@ impl Parser {
     }
 
     /// Parses the input into a TOMLDocument
-    /// CLEANUP
+    /// @cleanup: conflicts with parse_item wrt table parsing
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Container::new();
 
@@ -222,7 +222,6 @@ impl Parser {
     }
 
     pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
-        // if self.current() != ' ' {panic!("Called parcotrai on non ws");}
         let mut comment = None;
         self.mark();
 
@@ -235,10 +234,14 @@ impl Parser {
                     self.mark();
                     break;
                 }
-                ' ' | '\t' | '\r' | ',' => {self.inc();}
-                _ => break
+                ' ' | '\t' | '\r' | ',' => {
+                    self.inc();
+                }
+                _ => break,
             }
-            if self.end() {break;}
+            if self.end() {
+                break;
+            }
         }
         while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
         if self.current() == '\r' {
@@ -253,16 +256,15 @@ impl Parser {
         } else {
             "".to_string()
         };
-        println!("Trail: {:?}", trail);
         (comment, trail)
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Item, Option<Key>) {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Option<Key>, Item) {
         self.mark();
 
         // Extract indentation
-        while self.src[self.idx].is_whitespace() {
+        while self.current().is_spaces() {
             self.idx += 1;
         }
         let indent = self.extract();
@@ -282,15 +284,15 @@ impl Parser {
 
         // Parse value
         let mut val = self.parse_val();
+        println!("Calling meta_mut on: {}", val.discriminant() );
         val.meta_mut().indent = indent;
-
         // Handle end of line
         if parse_comment {
             let (comment, trail) = self.parse_comment_trail();
             val.meta_mut().comment = comment;
             val.meta_mut().trail = trail;
         }
-        (val, Some(key))
+        (Some(key), val)
     }
 
     /// Attempts to parse a value at the current position.
@@ -431,7 +433,9 @@ impl Parser {
                     if self.idx != self.marker {
                         elems.push(Item::WS(self.extract_exact()));
                     }
-                    if self.current() == ']' { break; }
+                    if self.current() == ']' {
+                        break;
+                    }
                     let next = match self.current() {
                         '#' => Item::Comment(self.parse_comment()),
                         _ => self.parse_val(),
@@ -463,8 +467,6 @@ impl Parser {
                         self.idx += 1;
                     }
                     let (key, val) = self.parse_key_value(false);
-                    println!("Parsing KV in inline table: {:?} {:?}", key, val);
-
                     let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
                 // @knob
@@ -564,28 +566,34 @@ impl Parser {
         }
     }
 
-    // @cleanup
-    // @todo: change return parameter order to match parse_item()
-    pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
-        let mut values = Container::new();
-
-        // Extract indent if any
-        while self.src[self.idx - 1] != '\n' {
+    fn rewind(&mut self) {
+        while self.idx != 0 && self.src[self.idx - 1] != '\n' {
             self.idx -= 1;
         }
-        self.mark();
-        while self.current().is_ws() {
-            self.idx += 1;
+    }
+
+    pub fn parse_table(&mut self) -> (Key, Item) {
         }
+        
+        // Indentation
+        self.rewind();
+        self.mark();
+        while self.current().is_ws() && self.inc() {}
         let indent = self.extract();
         // -------------------------
 
-        // Extract the name into a key
-        let inc = match array {
-            false => 1,
-            true => 2,
+        // Aot?
+        self.inc();
+        let is_array = if self.current() == '[' {
+            self.inc();
+            true
+        } else {
+            false
         };
-        self.idx += inc;
+        debug_assert_ne!(self.current(), '[');
+        // -----------------------
+
+        // Key
         self.mark();
         while self.current() != ']' {
             // @todo: Quoted names
@@ -597,117 +605,32 @@ impl Parser {
             raw: name.clone(),
             actual: name.clone(),
         };
-        // ENDS ON FIRST "]"
-        // --------------------------
-
-        // Get comment and trail
-        let mut comment: Option<Comment> = None;
-        let mut trail = "".to_string();
-
-        if array {
-            self.inc();
-        }
-
-        if self.end() {
-            return (key,
-                    Item::Table {
-                is_array: array,
-                val: values,
-                meta: LineMeta {
-                    indent: indent,
-                    comment: comment,
-                    trail: trail,
-                },
-            });
-        }
-
         self.inc();
-        self.mark();
-
-        // Search for a comment until a newline is found
-        // @cleanup: Compare with comment seeking logic in parse_key_value
-        let rewind = self.idx;
-
-        while !self.current().is_nl() {
-            if self.current() == '#' {
-                self.idx = rewind;
-                let c = self.parse_comment_trail();
-                comment = c.0;
-                trail = c.1;
-                break;
-            }
-            if !self.inc() {
-                self.idx = rewind;
-                break;
-            }
-        }
-
-        if comment.is_none() {
-            while self.current() != '\n' && self.inc() {
-            }
-            trail = self.extract_inclusive();
+        if is_array {
             self.inc();
         }
-
         // --------------------------
 
-        // Parse content
-        loop {
-            match self.current() {
-                '[' => {
-                    // @incomplete: "next" could be aot
-                    // @fixme: snippet repeated below
-                    let name_next = self.peek_table_name();
-                    match self.is_child(&name, &name_next) {
-                        true => {
-                            let next = self.dispatch_table();
-                            let _ = values.append(next.1, next.0)
-                                .map_err(|e| panic!(e.to_string()));
-                        }
-                        false => break,
-                    }
-                }
-                ' ' | '\t' => {
-                    self.mark();
-                    while self.current().is_ws() {
-                        if !self.inc() {
-                            break;
-                        }
-                    }
-                    match self.current() {
-                        '[' => {
-                            // @incomplete: "next" could be aot
-                            let name_next = self.peek_table_name();
-                            match self.is_child(&name, &name_next) {
-                                true => {
-                                    let next = self.dispatch_table();
-                                    let _ = values.append(next.1, next.0)
-                                        .map_err(|e| panic!(e.to_string()));
-                                }
-                                false => break,
-                            }
-                        }
-                        _ => {
-                            self.idx = self.marker;
-                            let kv = self.parse_item();
-                            let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
-                        }
-                    }
-                }
-                _ if self.current() != '\n' => {
-                    let kv = self.parse_item();
-                    let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
-                }
-                _ => {}
-            }
-            if self.idx == self.end {
-                break;
-            }
-        }
+        let (comment, trail) = self.parse_comment_trail();
 
+        let mut values = Container::new();
+        // @todo: cache parsed tables instead of rewinding
+        while !self.end() {
+            let (key, item) = self.parse_item();
+
+            if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
+                println!("Caching {}", key.as_ref().unwrap().as_string());
+                self.cache.push(((key.unwrap(), item), self.idx));
+                break;
+            } else if item.is_table() {
+                println!("Including {} in {}", key.as_ref().unwrap().as_string(), &name.clone());
+            }
+            let _ = values.append(key, item).map_err(|e| panic!(e.to_string()));
+        }
+        println!("Returning {}", &name.clone());
         (key,
          Item::Table {
-            is_array: array,
+            is_array: is_array,
             val: values,
             meta: LineMeta {
                 indent: indent,

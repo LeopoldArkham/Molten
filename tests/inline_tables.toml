@@ -1,6 +1,6 @@
-inline1 = {1 = true, 2 = false, 3 = true, 4 =  false}
+inline1 = {1 = true, 2 = false, 3 = true, 4 = false}
 
-inline2 = {one = 1, two =  2, three = 3}
-inline4 = {MLString = """\
+inline2 = {one = 1, two = 2, three = 3}
+inline4 = {MLBString = """\
 Hello, world\
-"""}
+""", SLBString = "Goodbye, world"}

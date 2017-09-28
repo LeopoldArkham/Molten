@@ -17,7 +17,7 @@ impl Container {
         }
     }
 
-    pub fn append<K: Into<Option<Key>>>(&mut self, item: Item, _key: K) -> Result<(), String> {
+    pub fn append<K: Into<Option<Key>>>(&mut self, _key: K, item: Item) -> Result<(), String> {
         let key = _key.into();
         if let Some(k) = key.clone() {
             if self.map.contains_key(&k) {

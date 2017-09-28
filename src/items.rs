@@ -38,7 +38,7 @@ pub enum KeyType {
     Quoted,
 }
 
-#[derive(Debug, Hash, Clone)]
+#[derive(Hash, Clone)]
 pub struct Key {
     pub t: KeyType,
     pub raw: String,
@@ -50,6 +50,12 @@ impl Eq for Key {}
 impl PartialEq for Key {
     fn eq(&self, other: &Key) -> bool {
         self.actual == other.actual
+    }
+}
+
+impl ::std::fmt::Debug for Key {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", self.actual)
     }
 }
 
@@ -123,6 +129,13 @@ impl Item {
             InlineTable { .. } => 8,
             Str { .. } => 9,
             AoT(_) => 10,
+        }
+    }
+
+    pub fn is_table(&self) -> bool {
+        match self.discriminant() {
+            7 | 10 => true,
+            _ => false,
         }
     }
 
