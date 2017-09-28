@@ -105,60 +105,45 @@ impl Parser {
     }
 
     pub fn dispatch_table(&mut self) -> (Key, Item) {
+        while self.current().is_spaces() && self.inc() {}
         match self.current() {
             '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
-            '[' => self.parse_table(false),
-            _ => panic!("Should not have entered dispatch_table()"),
+            '[' => self.parse_table(),
+            _ => {
+                panic!("Should not have entered dispatch_table()");
+            }
         }
     }
 
-    fn is_child(&self, parent: &str, child: &str) -> bool {
+    fn is_child(parent: &str, child: &str) -> bool {
         child != parent && child.starts_with(parent)
     }
 
     #[allow(non_snake_case)]
-    /// Parses shallow AoTs
+    /// Parses AoTs
     pub fn parse_AoT(&mut self) -> (Key, Item) {
-        let mut payload = Vec::new();
-        let name = self.peek_table_name();
-        while self.peek_table_name() == name {
-            payload.push(self.parse_table(true).1);
+        let mut array = Vec::new();
+        let (key, first) = self.parse_table();
+        array.push(first);
+
+        while !self.cache.is_empty() || !self.end() {
+            let rewind = self.idx;
+            let cached = self.cache.pop().unwrap();
+            if key.as_string() == (cached.0).0.as_string() {
+                array.push((cached.0).1);
+                self.idx = cached.1;
+            } else {
+                self.idx = rewind;
+                self.cache.push(cached);
+                break;
+            }
         }
-        let key = Key {
-            t: KeyType::Bare,
-            raw: name.clone(),
-            actual: name,
-        };
-        (key, Item::AoT(payload))
-    }
-
-    /// Peeks at a table-like element, returning its name,
-    /// and resetting the parser's position.
-    fn peek_table_name(&mut self) -> String {
-        let rewind = self.idx;
-
-        while self.current() != '[' {
-            self.idx += 1;
-        }
-
-        while self.current() == '[' {
-            self.idx += 1;
-        }
-
-        self.mark();
-
-        while self.current() != ']' {
-            self.idx += 1;
-        }
-
-        let r = self.extract();
-        self.idx = rewind;
-        r
+        (key, Item::AoT(array))
     }
 
     /// Attempts to parse the next item and returns it, along with its key
     /// if the item is value-like.
-    pub fn parse_item(&mut self) -> (Item, Option<Key>) {
+    pub fn parse_item(&mut self) -> (Option<Key>, Item) {
         // Mark start of whitespace
         self.mark();
         loop {
