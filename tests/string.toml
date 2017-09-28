@@ -1,0 +1,8 @@
+str1 = "Just a normal string"
+str2 = 'A "litteral" string'
+str3 = """\
+A multiline basic string \
+"""
+str4 = '''
+A multiline string
+'''

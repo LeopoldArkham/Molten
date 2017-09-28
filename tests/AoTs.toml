@@ -1,0 +1,27 @@
+[[first]]
+id = 1
+[first.nested]
+nested_id = "1/1"
+
+[[first]]
+id = 2
+
+[[first]]
+id = 3
+    [first.nested]
+    id = "3/1"
+        [[first.nested.nestedagain]]
+        # Why would anyone do this.
+        bool = true
+        [[first.nested.nestedagain]]
+        # Seriously
+        bool = false
+
+[[second]]
+[[second]]
+[[second]]
+
+[[last]]
+val = [1, 2, 3]
+[[last]]
+val = [4, 5, 6]

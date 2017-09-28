@@ -38,7 +38,7 @@ pub enum KeyType {
     Quoted,
 }
 
-#[derive(Debug, Hash, Clone)]
+#[derive(Hash, Clone)]
 pub struct Key {
     pub t: KeyType,
     pub raw: String,
@@ -53,11 +53,17 @@ impl PartialEq for Key {
     }
 }
 
+impl ::std::fmt::Debug for Key {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", self.actual)
+    }
+}
+
 impl Key {
     pub fn as_string(&self) -> String {
         let quote = match self.t {
             KeyType::Bare => "",
-            KeyType::Quoted => r#"""#
+            KeyType::Quoted => r#"""#,
         };
 
         format!("{}{}{}", quote, self.raw, quote)
@@ -66,44 +72,38 @@ impl Key {
 
 #[derive(Debug, Clone)]
 pub enum Item {
+    // @todo: Move comment struct content here. Also display logic
     WS(String),
     Comment(Comment),
     Integer {
-      val: i64,
-      meta: LineMeta,  
+        val: i64,
+        meta: LineMeta,
+        raw: String,
     },
     Float {
-     val: f64,
-     meta: LineMeta,   
-    },
-    Bool {
-        val: bool,
+        val: f64,
         meta: LineMeta,
+        raw: String,
     },
+    Bool { val: bool, meta: LineMeta },
     DateTime {
         val: ChronoDateTime<FixedOffset>,
         raw: String,
         meta: LineMeta,
     },
-    Array {
-        val: Vec<Item>,
-        meta: LineMeta,
-    },
+    Array { val: Vec<Item>, meta: LineMeta },
     Table {
         is_array: bool,
         val: Container,
         meta: LineMeta,
     },
-    InlineTable {
-        val: Container,
-        meta: LineMeta,
-    },
+    InlineTable { val: Container, meta: LineMeta },
     Str {
         t: StringType,
         val: String,
         meta: LineMeta,
     },
-    AoT(Vec<Item>)
+    AoT(Vec<Item>),
 }
 
 impl Item {
@@ -117,19 +117,46 @@ impl Item {
 
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
-        // TODO: Move comment struct content here. Also display logic
         match *self {
             WS(_) => 0,
             Comment(_) => 1,
-            Integer {..} => 2,
-            Float {..} => 3,
-            Bool {..} => 4,
-            DateTime {..} => 5,
-            Array {..} => 6,
-            Table {..} => 7,
-            InlineTable {..} => 8,
-            Str {..} => 9,
+            Integer { .. } => 2,
+            Float { .. } => 3,
+            Bool { .. } => 4,
+            DateTime { .. } => 5,
+            Array { .. } => 6,
+            Table { .. } => 7,
+            InlineTable { .. } => 8,
+            Str { .. } => 9,
             AoT(_) => 10,
+        }
+    }
+
+    pub fn is_table(&self) -> bool {
+        match self.discriminant() {
+            7 | 10 => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_homogeneous(&self) -> bool {
+        use std::collections::HashSet;
+        match *self {
+            Item::Array { ref val, .. } => {
+                let t = val.iter()
+                    .filter_map(|it| {
+                        match it {
+                            &Item::WS(_) |
+                            &Item::Comment(_) => None,
+                            _ => Some(it.discriminant()),
+                        }
+                    })
+                    .collect::<HashSet<_>>()
+                    .len();
+                t == 1
+
+            }
+            _ => unreachable!(),
         }
     }
 
@@ -138,35 +165,30 @@ impl Item {
         match *self {
             WS(ref s) => s.clone(),
             Comment(ref c) => c.as_string(),
-            Integer{val, ..} => format!("{}", val),
-            Float{val, ..} => format!("{}", val),
-            Bool{val, ..} => format!("{}", val),
-            DateTime{ref raw, ..} => format!("{}", raw),
-            Array{ref val, ..} => {
+            Integer { ref raw, .. } => format!("{}", raw),
+            Float { ref raw, .. } => format!("{}", raw),
+            Bool { val, .. } => format!("{}", val),
+            DateTime { ref raw, .. } => format!("{}", raw),
+            Array { ref val, .. } => {
                 let mut buf = String::new();
                 buf.push_str("[");
-                for (i, item) in val.iter().enumerate() {
+                for item in val.iter() {
                     buf.push_str(&item.as_string());
-                    if i != val.len() - 1 {
-                        buf.push_str(", ");
-                    }
                 }
                 buf.push_str("]");
                 buf
-            },
-            Table{ref val, is_array, ref meta} => {
-                val.as_string()
             }
-            InlineTable{ref val, ref meta} => {
+            Table { ref val, .. } => val.as_string(),
+            InlineTable { ref val, .. } => {
                 let mut buf = String::new();
                 buf.push_str("{");
                 for (i, &(ref k, ref v)) in val.body.iter().enumerate() {
                     buf.push_str(&format!("{}{} = {}{}{}",
-                        v.meta().indent,
-                        k.clone().unwrap().as_string(),
-                        v.as_string(),
-                        v.meta().comment(),
-                        v.meta().trail));
+                                          v.meta().indent,
+                                          k.clone().unwrap().as_string(),
+                                          v.as_string(),
+                                          v.meta().comment(),
+                                          v.meta().trail));
                     if i != val.body.len() - 1 {
                         buf.push_str(", ");
                     }
@@ -174,7 +196,7 @@ impl Item {
                 buf.push_str("}");
                 buf
             }
-            Str{ref t, ref val, ..} => {
+            Str { ref t, ref val, .. } => {
                 match *t {
                     StringType::MLB(ref s) => format!(r#"{}"#, s),
                     StringType::SLB => format!(r#""{}""#, val),
@@ -189,7 +211,7 @@ impl Item {
                 }
                 b
             }
-        } 
+        }
     }
 
     pub fn meta<'a>(&'a self) -> &'a LineMeta {
@@ -198,15 +220,15 @@ impl Item {
             WS(_) | Comment(_) | AoT(_) => {
                 println!("{:?}", self);
                 panic!("Called meta on non-value Item variant");
-                }
-            Integer{ref meta, ..} |
-            Float{ref meta, ..} |
-            Bool{ref meta, ..} |
-            DateTime{ref meta, ..} |
-            Array{ref meta, ..} |
-            Table{ref meta, ..} |
-            InlineTable{ref meta, ..} |
-            Str{ref meta, ..} => meta,
+            }
+            Integer { ref meta, .. } |
+            Float { ref meta, .. } |
+            Bool { ref meta, .. } |
+            DateTime { ref meta, .. } |
+            Array { ref meta, .. } |
+            Table { ref meta, .. } |
+            InlineTable { ref meta, .. } |
+            Str { ref meta, .. } => meta,
         }
     }
 
@@ -216,15 +238,15 @@ impl Item {
             WS(_) | Comment(_) | AoT(_) => {
                 println!("{:?}", self);
                 panic!("Called meta on non-value Item variant");
-                }
-            Integer{ref mut meta, ..} |
-            Float{ref mut meta, ..} |
-            Bool{ref mut meta, ..} |
-            DateTime{ref mut meta, ..} |
-            Array{ref mut meta, ..} |
-            Table{ref mut meta, ..} |
-            InlineTable{ref mut meta, ..} |
-            Str{ref mut meta, ..} => meta,
+            }
+            Integer { ref mut meta, .. } |
+            Float { ref mut meta, .. } |
+            Bool { ref mut meta, .. } |
+            DateTime { ref mut meta, .. } |
+            Array { ref mut meta, .. } |
+            Table { ref mut meta, .. } |
+            InlineTable { ref mut meta, .. } |
+            Str { ref mut meta, .. } => meta,
         }
     }
 }

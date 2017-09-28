@@ -6,7 +6,7 @@ use items::*;
 pub struct Container {
     // TODO: remove pub after implementing iterator methods
     pub map: HashMap<Key, usize>,
-    pub body: Vec<(Option<Key> ,Item)>,
+    pub body: Vec<(Option<Key>, Item)>,
 }
 
 impl Container {
@@ -17,11 +17,11 @@ impl Container {
         }
     }
 
-    pub fn append<K: Into<Option<Key>>>(&mut self, item: Item, _key: K) -> Result<(), String> {
+    pub fn append<K: Into<Option<Key>>>(&mut self, _key: K, item: Item) -> Result<(), String> {
         let key = _key.into();
         if let Some(k) = key.clone() {
             if self.map.contains_key(&k) {
-                return Err("Cannot override existing key".to_string())
+                return Err(format!("Cannot override existing key: {:?}", k));
             }
             self.map.insert(k, self.body.len());
         }
@@ -35,7 +35,7 @@ impl Container {
         for (k, v) in self.body.clone().into_iter() {
             let cur: String = if k.is_some() {
                 match v {
-                    Item::Table{ref val, is_array, ref meta} => {
+                    Item::Table { is_array, .. } => {
                         let (open, close) = match is_array {
                             true => ("[[", "]]"),
                             false => ("[", "]"),
@@ -55,7 +55,7 @@ impl Container {
                         let key = k.unwrap().as_string();
                         // TODO: trail no worky worky here
                         for table in vec {
-                            buf.push_str(&format!("{}[[{}]]{}{}", 
+                            buf.push_str(&format!("{}[[{}]]{}{}",
                                                   table.meta().indent,
                                                   key,
                                                   table.meta().comment(),
@@ -66,11 +66,11 @@ impl Container {
                     }
                     _ => {
                         format!("{}{} = {}{}{}",
-                        v.meta().indent,
-                        k.unwrap().as_string(),
-                        v.as_string(),
-                        v.meta().comment(),
-                        v.meta().trail)
+                                v.meta().indent,
+                                k.unwrap().as_string(),
+                                v.as_string(),
+                                v.meta().comment(),
+                                v.meta().trail)
                     }
                 }
             } else {
@@ -103,19 +103,19 @@ pub struct ContainerIterator<'a> {
 
 impl<'a> Iterator for ContainerIterator<'a> {
     type Item = &'a Item;
-    
+
     // "There must be a better way"
     fn next(&mut self) -> Option<&'a Item> {
         loop {
             if self.current == self.container.body.len() {
-                return None
-            }   
+                return None;
+            }
             match self.container.body[self.current].1.is_value() {
                 true => {
                     let r = Some(&self.container.body[self.current].1);
                     self.current += 1;
-                    return r
-                    }
+                    return r;
+                }
                 false => self.current += 1,
             }
         }
@@ -129,7 +129,7 @@ pub struct ContainerIteratorExhaustive<'a> {
 
 impl<'a> Iterator for ContainerIteratorExhaustive<'a> {
     type Item = &'a Item;
-    
+
     fn next(&mut self) -> Option<&'a Item> {
         if self.current != self.container.body.len() {
             let r = &self.container.body[self.current];

@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["LeopoldArkham <leopold.arkham@gmail.com>"]
 
 [dependencies]
-linked-hash-map = "0.4.1"
 chrono = "0.3.0"
+pretty_assertions = "0.1.2"
+
+[dev-dependencies]
+test-case-derive = "0.1.4"
 pretty_assertions = "0.1.2"

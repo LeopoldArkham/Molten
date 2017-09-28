@@ -7,7 +7,7 @@ bool = true
 a_date = 1979-05-27T00:32:00.999999-07:00
 single = "Fluctat nec mergitur"
 multi = """/
-           Lorem ipsum /
+           Lorem ipsum /    
            dolor sit /
            amet./
            """# Comment from hell
@@ -31,6 +31,13 @@ inline = {a = true, b = true, c = false}
 
     long = "shot"
 
+    [table.nested]      #Nesting works
+    value = 1
+    other_value = 2
+
+    [table.nested.twice]
+    test = "Hi"
+
     [second.table]#Table comment
 true = false
 list = ["Er", "mah", "Gahd!"]
@@ -40,6 +47,10 @@ inline = {a = true, b = true, c = false}
 [[parsethis]]
 a = 1
 b = 2
+[[parsethis.sub]]
+flag = true
+[[parsethis.sub]]
+flag = false
 
 [[parsethis]]
 b = 1
@@ -54,6 +65,21 @@ flag = true
 
 [[other_AoT]]
 flag = false
+[[other_AoT]]
+flag = false
 
 [tableattheend]
-inline = {a = true, b = true, c = false}
+inline = {a = true, b = true, c = false} # test
+val = -1
+flag = true
+name_1 = "Patapouf"
+name_2 = 'Poupouf'
+name_3 = """Patapouf"""
+name_4 = '''Poupouf'''
+sdf = """ hi"""
+array = ["test", "test", "test"]
+a_date = 1979-05-27T00:32:00.999999-07:00
+
+[empty_table]
+      
+# a comment

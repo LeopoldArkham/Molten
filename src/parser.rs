@@ -4,7 +4,7 @@ use items::*;
 use comment::Comment;
 use container::Container;
 
-use chrono::{DateTime as ChronoDateTime};
+use chrono::DateTime as ChronoDateTime;
 
 use std::str::FromStr;
 
@@ -19,17 +19,35 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser from a string.
     pub fn new(input: &str) -> Parser {
+        let end = if input.is_empty() {
+            0
+        } else {
+            input.len() - 1 as usize
+        };
         Parser {
             src: input.chars().collect::<Vec<char>>(),
             idx: 0,
             marker: 0,
-            end: input.len() - 1 as usize,
+            end: end,
         }
     }
 
     /// Extract the value between marker and index.
     fn extract(&self) -> String {
+        let end = if self.not_end() {
+            self.idx
+        } else {
+            self.idx + 1
+        };
+        self.src[self.marker..end].iter().cloned().collect::<String>()
+    }
+
+    fn extract_exact(&mut self) -> String {
         self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+    }
+
+    fn extract_inclusive(&mut self) -> String {
+        self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>()
     }
 
     /// Increments the parser if the end of the input has not been reached
@@ -40,6 +58,14 @@ impl Parser {
         } else {
             false
         }
+    }
+
+    fn not_end(&self) -> bool {
+        self.idx != self.end
+    }
+
+    fn end(&self) -> bool {
+        !self.not_end()
     }
 
     /// Sets the marker to the index's current position
@@ -53,7 +79,7 @@ impl Parser {
     }
 
     /// Parses the input into a TOMLDocument
-    /// CLEANUP
+    /// @cleanup: conflicts with parse_item wrt table parsing
     pub fn parse(&mut self) -> TOMLDocument {
         let mut body = Container::new();
 
@@ -71,66 +97,50 @@ impl Parser {
         // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
             let (k, v) = self.dispatch_table();
-            let _ = body.append(v, k).map_err(|e| panic!(e.to_string()));
+            let _ = body.append(k, v).map_err(|e| panic!(e.to_string()));
         }
 
         TOMLDocument(body)
     }
 
     pub fn dispatch_table(&mut self) -> (Key, Item) {
+        while self.current().is_spaces() && self.inc() {}
         match self.current() {
             '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
-            '[' => self.parse_table(false),
-            _ => panic!("Should not have entered dispatch_table()"),
-        }
-    }
-
-    fn is_child(&self, parent: &str, child: &str) -> bool {
-        false
-    }
-
-    #[allow(non_snake_case)]
-    /// Parses shallow AoTs
-    pub fn parse_AoT(&mut self) -> (Key, Item) {
-        let mut payload = Vec::new();
-        let name = self.extract_AoT_name();
-        while self.extract_AoT_name() == name {
-            payload.push(self.parse_table(true).1);
-        }
-        let key = Key {
-            t: KeyType::Bare,
-            raw: name.clone().unwrap(),
-            actual: name.unwrap(),
-        };
-        (key, Item::AoT(payload))
-    }
-
-    #[allow(non_snake_case)]
-    /// Gets name of next AoT element, then resets parser position
-    pub fn extract_AoT_name(&mut self) -> Option<String> {
-        let start = self.idx;
-
-        let res = match self.current() {
-            '[' if self.src[self.idx + 1] == '[' => {
-                // Skip [[
-                self.idx += 2;
-                self.mark();
-
-                while self.src[self.idx..self.idx + 2] != [']', ']'] {
-                    self.idx += 1;
-                }
-                Some(self.extract())
+            '[' => self.parse_table(),
+            _ => {
+                panic!("Should not have entered dispatch_table()");
             }
-            _ => None,
-        };
+        }
+    }
 
-        self.idx = start;
-        res
+    fn is_child(parent: &str, child: &str) -> bool {
+        child != parent && child.starts_with(parent)
+    }
+
+    #[allow(non_snake_case)]
+    /// Parses AoTs
+    pub fn parse_AoT(&mut self) -> (Key, Item) {
+        let mut array = Vec::new();
+        let (key, first) = self.parse_table();
+        array.push(first);
+
+        while !self.end() {
+            let rewind = self.idx;
+            let (k, table) = self.parse_table();
+            if key.as_string() == k.as_string() {
+                array.push(table);
+            } else {
+                self.idx = rewind;
+                break;
+            }
+        }
+        (key, Item::AoT(array))
     }
 
     /// Attempts to parse the next item and returns it, along with its key
     /// if the item is value-like.
-    pub fn parse_item(&mut self) -> (Item, Option<Key>) {
+    pub fn parse_item(&mut self) -> (Option<Key>, Item) {
         // Mark start of whitespace
         self.mark();
         loop {
@@ -139,21 +149,25 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return (Item::WS(self.extract()), None);
+                    return (None, Item::WS(self.extract()));
+                }
+                // EOF ws
+                ' ' | '\t' if self.end() => {
+                    return (None, Item::WS(self.extract()));
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
                 // Found a comment, parse it
                 '#' => {
                     self.idx = self.marker;
-                    let (mut c, trail) = self.parse_comment();
+                    let (c, trail) = self.parse_comment_trail();
+                    let mut c = c.expect("There really should be a comment here - parse_item()");
                     c.comment += &trail;
-                    return (Item::Comment(c), None);
+                    return (None, Item::Comment(c));
                 }
                 '[' => {
-                    // self.idx = self.marker;
                     let r = self.dispatch_table();
-                    return (r.1, Some(r.0));
+                    return (r.0.into(), r.1);
                 }
                 _ => {
                     // Return to begining of whitespace so it gets included
@@ -165,80 +179,114 @@ impl Parser {
         }
     }
 
-    /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Item, Option<Key>) {
+    /// Attempts to parse a comment at the current position, and returns it along with
+    /// the newline character. Only call this function if the presence of the pound sign
+    /// is guaranteed.
+    fn parse_comment(&mut self) -> Comment {
+        // Find this comment's indentation w.r.t. the last non-ws character.
         self.mark();
-        while self.src[self.idx].is_whitespace() {
+        while self.current() != '#' {
             self.idx += 1;
         }
 
         let indent = self.extract();
+        // Skip #
+        self.idx += 1;
+        self.mark();
 
+        // The comment itself
+        // @fixme: Comment on EOF
+        while self.not_end() && !self.current().is_nl() {
+            self.idx += 1;
+        }
+
+        let comment = self.extract();
+        Comment {
+            indent: indent,
+            comment: comment,
+        }
+    }
+
+    pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
+        let mut comment = None;
+        self.mark();
+
+        loop {
+            match self.current() {
+                '\n' => break,
+                '#' => {
+                    self.idx = self.marker;
+                    comment = Some(self.parse_comment()); // Ends on first NL or last char if EOF
+                    self.mark();
+                    break;
+                }
+                ' ' | '\t' | '\r' | ',' => {
+                    self.inc();
+                }
+                _ => break,
+            }
+            if self.end() {
+                break;
+            }
+        }
+        while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
+        if self.current() == '\r' {
+            self.inc();
+        }
+        if self.current() == '\n' {
+            self.inc();
+        }
+
+        let trail = if self.idx != self.marker || self.current().is_ws() {
+            self.extract()
+        } else {
+            "".to_string()
+        };
+        (comment, trail)
+    }
+
+    /// Parses and returns a key/value pair.
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Option<Key>, Item) {
+        self.mark();
+
+        // Extract indentation
+        while self.current().is_spaces() {
+            self.idx += 1;
+        }
+        let indent = self.extract();
+
+        // Dispatch on key type
+        // @cleanup: Separate function
         let key = match self.src[self.idx] {
             '"' => self.parse_quoted_key(),
             _ => self.parse_bare_key(),
         };
 
         // Skip = and whitespace
+        // @incomplete: Extract for full KV reproduction
         while self.src[self.idx].is_ws_or_equal() {
             self.idx += 1;
         }
 
         // Parse value
         let mut val = self.parse_val();
+        println!("Calling meta_mut on: {}", val.discriminant() );
         val.meta_mut().indent = indent;
-        // Parse comment
-        // TODO: Remove
-
-        if !parse_comment || self.idx == self.end {
-            if self.idx == self.end {
-            }
-            return (val, Some(key));
-        } else {
-            // SEND HELP
-            self.mark();
-            while self.idx != self.src.len() - 1 && self.current() != '#' &&
-                  self.current() != '\r' && self.current() != '\n' {
-                self.idx += 1;
-            }
-
-            let (comment, trailing) = match self.current() {
-                '#' => {
-                    self.idx = self.marker;
-                    let (c, t) = self.parse_comment();
-                    (Some(c), t)
-                }
-                '\r' => {
-                    if self.src[self.idx + 1] == '\n' {
-                        self.idx += 2;
-                        // TODO: Check for out of bounds
-                        let t = self.extract();
-                        (None, t)
-                    } else {
-                        panic!("Invalid newline pattern");
-                    }
-                }
-                '\n' => {
-                    let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
-                    (None, t)
-                }
-                // Then we reached EOF
-                _ => {
-                    let t = self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>();
-                    (None, t)
-                }
-            };
+        // Handle end of line
+        if parse_comment {
+            let (comment, trail) = self.parse_comment_trail();
             val.meta_mut().comment = comment;
-            val.meta_mut().trail = trailing;
-            (val, Some(key))
+            val.meta_mut().trail = trail;
         }
+        (Some(key), val)
     }
 
     /// Attempts to parse a value at the current position.
     pub fn parse_val(&mut self) -> Item {
         self.mark();
         let meta: LineMeta = Default::default();
-        match self.src[self.idx] {
+        match self.current() {
+            // Multi Line Basic String
             '"' if (self.src[self.idx + 1] == '"' && self.src[self.idx + 2] == '"') => {
                 // skip """
                 self.idx += 3;
@@ -259,10 +307,14 @@ impl Parser {
                             }
                             lstart = self.idx;
                         }
-                        _ => self.idx += 1,
+                        _ => {
+                            self.inc();
+                        }
                     }
                 }
-                self.idx += 2;
+                self.inc();
+                self.inc();
+                self.inc();
                 let raw = self.extract();
 
                 Item::Str {
@@ -271,20 +323,24 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Single Line Basic String
             '"' => {
                 // skip '"' and mark
                 self.idx += 1;
                 self.mark();
 
+                // @incomplete: Needs to account for escaped backslashes
+                // Seek end of string
                 while self.src[self.idx] != '"' {
                     self.idx += 1;
                     if self.idx == self.src.len() {
                         println!("Single line string failure {:?}", &self.src[self.marker..]);
                     }
                 }
-                let payload = self.extract();
+
+                let payload = self.extract_exact();
                 // Clear '"'
-                self.idx += 1;
+                self.inc();
 
                 Item::Str {
                     t: StringType::SLB,
@@ -292,6 +348,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Multi Line literal String
             '\'' if (self.src[self.idx + 1] == '\'' && self.src[self.idx + 2] == '\'') => {
                 // Skip '''
                 self.idx += 3;
@@ -301,7 +358,9 @@ impl Parser {
                     self.idx += 1;
                 }
                 let payload = self.extract();
-                self.idx += 3;
+                // Two slashes guaranteed
+                self.idx += 2;
+                self.inc();
 
                 Item::Str {
                     t: StringType::MLL,
@@ -309,6 +368,7 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Single Line literal String
             '\'' => {
                 // Skip '
                 self.idx += 1;
@@ -317,8 +377,8 @@ impl Parser {
                 while self.current() != '\'' {
                     self.idx += 1;
                 }
-                let payload = self.extract();
-                self.idx += 1;
+                let payload = self.extract_exact();
+                self.inc();
 
                 Item::Str {
                     t: StringType::SLL,
@@ -326,43 +386,64 @@ impl Parser {
                     meta: meta,
                 }
             }
+            // Boolean: true
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
-                self.idx += 4;
+                self.idx += 3;
+                self.inc();
 
                 Item::Bool {
                     val: true,
                     meta: meta,
                 }
             }
+            // Boolean: False
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
-                self.idx += 5;
+                self.idx += 4;
+                self.inc();
 
                 Item::Bool {
                     val: false,
                     meta: meta,
                 }
             }
+            // Array
             '[' => {
-                // Create empty vec and skip '['
                 let mut elems: Vec<Item> = Vec::new();
-                self.idx += 1;
+                self.inc();
 
-                while self.src[self.idx] != ']' {
-                    while self.src[self.idx].is_ws() || self.src[self.idx] == ',' {
-                        self.idx += 1;
+                while self.current() != ']' {
+                    self.mark();
+                    while self.current().is_ws() || self.current() == ',' {
+                        self.inc();
                     }
-                    let val = self.parse_val();
-                    // self.idx += 1;
-                    let check = val.discriminant();
-                    elems.push(val);
-                    assert_eq!(elems[0].discriminant(), check);
+                    if self.idx != self.marker {
+                        elems.push(Item::WS(self.extract_exact()));
+                    }
+                    if self.current() == ']' {
+                        break;
+                    }
+                    let next = match self.current() {
+                        '#' => Item::Comment(self.parse_comment()),
+                        _ => self.parse_val(),
+                    };
+                    elems.push(next);
                 }
-                self.idx += 1;
-                Item::Array {
+                self.inc();
+
+                // @cleanup: Add Item::is_homogeneous() to operate on elems
+                // and refactor below; ---
+                let res = Item::Array {
                     val: elems,
                     meta: meta,
+                };
+
+                if res.is_homogeneous() {
+                    res
+                } else {
+                    panic!("Non homogeneous array");
                 }
             }
+            // Inline Table
             '{' => {
                 let mut elems: Container = Container::new();
                 self.idx += 1;
@@ -374,44 +455,45 @@ impl Parser {
                     let (key, val) = self.parse_key_value(false);
                     let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
-                if self.idx != self.end {
-                    self.idx += 1;
-                }
+                // @knob
+                self.inc();
                 Item::InlineTable {
                     val: elems,
                     meta: meta,
                 }
             }
+            // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
-                // TODO: Clean this mess
-                while self.idx != self.src.len() - 1 &&
-                      self.src[self.idx + 1].not_whitespace_or_pound() &&
-                      self.src[self.idx + 1] != ',' &&
-                      self.src[self.idx + 1] != ']' &&
-                      self.src[self.idx + 1] != '}' {
-                    self.idx += 1;
+                // @cleanup
+                while self.current().not_whitespace_or_pound() && self.current() != ',' &&
+                      self.current() != ']' && self.current() != '}' &&
+                      self.inc() {}
+                // EOF shittiness
+                if !('0'...'9').contains(self.current()) {
+                    self.idx -= 1;
                 }
 
-                // TODO: Filtermap and why **?
-                let clean: String = self.src[self.marker..self.idx + 1]
-                    .iter()
-                    .filter(|c| **c != '_')
-                    .cloned()
+                let raw = self.extract_inclusive();
+                self.inc();
+
+                let clean: String = raw.chars()
+                    .filter(|c| *c != '_' && *c != ' ')
                     .collect::<String>();
 
-                // Skip last character of value being parsed
-                self.idx += 1;
-
-                // Ask forgiveness, not permission
+                // Forgiveness > Permission
                 if let Ok(res) = i64::from_str(&clean) {
                     return Item::Integer {
                         val: res,
                         meta: meta,
+                        raw: raw,
                     };
                 } else if let Ok(res) = f64::from_str(&clean) {
+                    // @incomplete: "Similar to integers, you may use underscores to enhance
+                    // readability. Each underscore must be surrounded by at least one digit."
                     return Item::Float {
                         val: res,
                         meta: meta,
+                        raw: raw,
                     };
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
                     return Item::DateTime {
@@ -421,59 +503,20 @@ impl Parser {
                     };
                 }
 
-                println!("working on: {:?}", clean);
+                // @incomplete: Error management
+                println!("working on: {:?}", raw);
                 panic!("Could not parse to int, float or DateTime");
             }
             _ => {
-                println!("Current: {}", self.current());
+                // @incomplete: Error management
+                println!("Current: {}",
+                         self.src[self.idx..].iter().collect::<String>());
                 panic!("Could not infer type of value being parsed");
             }
         }
     }
 
-    /// Attempts to parse a comment at the current position, and returns it along with
-    /// the newline character. Only call this function if the presence of the pound sign
-    /// is guaranteed.
-    fn parse_comment(&mut self) -> (Comment, String) {
-        self.mark();
-
-        // Find this comment's indentation w.r.t. the last non-ws character.
-        while self.current() != '#' {
-            self.idx += 1;
-        }
-        let indent = self.extract();
-
-        // Skip #
-        self.idx += 1;
-        self.mark();
-
-        // The comment itself
-        while self.current() != '\r' && self.current() != '\n' {
-            self.idx += 1;
-        }
-        let comment = self.extract();
-
-        self.mark();
-        let trailing = match self.current() {
-            '\r' => {
-                self.idx += 2;
-                "\r\n".to_string()
-            }
-            '\n' => {
-                self.idx += 1;
-                "\n".to_string()
-            }
-            _ => unreachable!(),
-        };
-
-        (Comment {
-            indent: indent,
-            comment: comment,
-        },
-         trailing)
-
-    }
-
+    // @incomplete: Does straight up nothing
     pub fn parse_quoted_key(&mut self) -> Key {
         // Skip "
         self.idx += 1;
@@ -494,6 +537,7 @@ impl Parser {
         }
     }
 
+    // @cleanup: Old code
     pub fn parse_bare_key(&mut self) -> Key {
         self.mark();
         while self.src[self.idx].is_bare_key_char() {
@@ -508,93 +552,68 @@ impl Parser {
         }
     }
 
-    // TODO: Clean this for the love of Eru
-    pub fn parse_table(&mut self, array: bool) -> (Key, Item) {
-        // Extract indent if any
-        while self.src[self.idx - 1] != '\n' {
+    fn rewind(&mut self) {
+        while self.idx != 0 && self.src[self.idx - 1] != '\n' {
             self.idx -= 1;
         }
+    }
+
+    pub fn parse_table(&mut self) -> (Key, Item) {
+        // Indentation
+        self.rewind();
         self.mark();
-        while self.current().is_ws() {
-            self.idx += 1;
-        }
+        while self.current().is_ws() && self.inc() {}
         let indent = self.extract();
         // -------------------------
 
-        // Extract the name into a key
-        let inc = match array {
-            false => 1,
-            true => 2,
+        // Aot?
+        self.inc();
+        let is_array = if self.current() == '[' {
+            self.inc();
+            true
+        } else {
+            false
         };
-        self.idx += inc;
+        debug_assert_ne!(self.current(), '[');
+        // -----------------------
+
+        // Key
         self.mark();
         while self.current() != ']' {
-            // TODO: Quoted names
+            // @todo: Quoted names
             self.idx += 1;
         }
-        let name = self.extract();
+        let name = self.extract_exact();
         let key = Key {
             t: KeyType::Bare,
             raw: name.clone(),
-            actual: name,
+            actual: name.clone(),
         };
-        // --------------------------
-
-        // Get comment and trail
-        self.idx += inc;
-        self.mark();
-
-        let mut comment: Option<Comment> = None;
-        let mut trail = "".to_string();
-        while !self.current().is_nl() {
-            if self.current() == '#' {
-                let r = self.parse_comment();
-                comment = Some(r.0);
-                trail = r.1;
-                break;
-            }
-            self.idx += 1;
-        }
-        if comment.is_none() {
-            while self.current().is_nl() {
-                self.idx += 1
-            }
-            trail = self.extract();
+        self.inc();
+        if is_array {
+            self.inc();
         }
         // --------------------------
 
-        // Parse content
+        let (comment, trail) = self.parse_comment_trail();
+
         let mut values = Container::new();
-        loop {
-            if self.idx == self.end {
+        // @todo: cache parsed tables instead of rewinding
+        while !self.end() {
+            let rewind = self.idx;
+            let (key, item) = self.parse_item();
+
+            if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
+                println!("Caching {}", key.as_ref().unwrap().as_string());
+                self.idx = rewind;
                 break;
             }
-
-            match self.current() {
-                '[' => break,
-                ' ' | '\t' => {
-                    self.mark();
-                    while self.current().is_ws() {
-                        self.idx += 1;
-                    }
-                    match self.current() {
-                        '[' => break,
-                        _ => {
-                            self.idx = self.marker;
-                            let kv = self.parse_item();
-                            let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
-                        }
-                    }
-                }
-                _ => {
-                    let kv = self.parse_item();
-                    let _ = values.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
-                }
-            }
+            let _ = values.append(key, item).map_err(|e| panic!(e.to_string()));
         }
+        println!("Returning {}", &name.clone());
         (key,
          Item::Table {
-            is_array: array,
+            is_array: is_array,
             val: values,
             meta: LineMeta {
                 indent: indent,

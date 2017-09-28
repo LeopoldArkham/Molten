@@ -1,5 +1,4 @@
 pub trait TOMLChar {
-    // TODO Add validators for each key/value scheme
     fn is_bare_key_char(&self) -> bool;
     fn is_ws_or_equal(&self) -> bool;
     fn is_int_float_char(&self) -> bool;
@@ -7,6 +6,8 @@ pub trait TOMLChar {
     fn not_ws(&self) -> bool;
     fn not_whitespace_or_pound(&self) -> bool;
     fn is_nl(&self) -> bool;
+    // @cleanup: replace is_ws with this
+    fn is_spaces(&self) -> bool;
 }
 
 impl TOMLChar for char {
@@ -52,6 +53,13 @@ impl TOMLChar for char {
     fn is_nl(&self) -> bool {
         match *self {
             '\n' | '\r' => true,
+            _ => false,
+        }
+    }
+
+    fn is_spaces(&self) -> bool {
+        match *self {
+            ' ' | '\t' => true,
             _ => false,
         }
     }
