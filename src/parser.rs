@@ -29,7 +29,6 @@ impl Parser {
             idx: 0,
             marker: 0,
             end: end,
-            cache: Vec::with_capacity(20),
         }
     }
 
@@ -98,7 +97,7 @@ impl Parser {
         // Switch to parsing tables and arrays of tables
         while self.idx != self.end {
             let (k, v) = self.dispatch_table();
-            let _ = body.append(v, k).map_err(|e| panic!(e.to_string()));
+            let _ = body.append(k, v).map_err(|e| panic!(e.to_string()));
         }
 
         TOMLDocument(body)
@@ -126,15 +125,13 @@ impl Parser {
         let (key, first) = self.parse_table();
         array.push(first);
 
-        while !self.cache.is_empty() || !self.end() {
+        while !self.end() {
             let rewind = self.idx;
-            let cached = self.cache.pop().unwrap();
-            if key.as_string() == (cached.0).0.as_string() {
-                array.push((cached.0).1);
-                self.idx = cached.1;
+            let (k, table) = self.parse_table();
+            if key.as_string() == k.as_string() {
+                array.push(table);
             } else {
                 self.idx = rewind;
-                self.cache.push(cached);
                 break;
             }
         }
@@ -562,8 +559,6 @@ impl Parser {
     }
 
     pub fn parse_table(&mut self) -> (Key, Item) {
-        }
-        
         // Indentation
         self.rewind();
         self.mark();
@@ -605,14 +600,13 @@ impl Parser {
         let mut values = Container::new();
         // @todo: cache parsed tables instead of rewinding
         while !self.end() {
+            let rewind = self.idx;
             let (key, item) = self.parse_item();
 
             if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
                 println!("Caching {}", key.as_ref().unwrap().as_string());
-                self.cache.push(((key.unwrap(), item), self.idx));
+                self.idx = rewind;
                 break;
-            } else if item.is_table() {
-                println!("Including {} in {}", key.as_ref().unwrap().as_string(), &name.clone());
             }
             let _ = values.append(key, item).map_err(|e| panic!(e.to_string()));
         }

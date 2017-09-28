@@ -14,18 +14,18 @@ use std::fmt::Display;
 
 use test_case_derive::test_case;
 
-// #[test_case("tests/full.toml" :: "Full")]
-// #[test_case("tests/integers.toml" :: "Integers")]
-// #[test_case("tests/floats.toml" :: "Floats")]
-// #[test_case("tests/bools.toml" :: "Bools")]
-// #[test_case("tests/arrays.toml" :: "Arrays")]
-// #[test_case("tests/comments.toml" :: "Comments")]
-// #[test_case("tests/inline_tables.toml" :: "Inline Tables")]
-// #[test_case("tests/strings.toml" :: "Strings")]
-// #[test_case("tests/tables.toml" :: "Tables")]
+#[test_case("tests/full.toml" :: "Full")]
+#[test_case("tests/integers.toml" :: "Integers")]
+#[test_case("tests/floats.toml" :: "Floats")]
+#[test_case("tests/bools.toml" :: "Bools")]
+#[test_case("tests/arrays.toml" :: "Arrays")]
+#[test_case("tests/comments.toml" :: "Comments")]
+#[test_case("tests/inline_tables.toml" :: "Inline Tables")]
+#[test_case("tests/strings.toml" :: "Strings")]
+#[test_case("tests/tables.toml" :: "Tables")]
 #[test_case("tests/AoTs.toml" :: "AoT's")]
-// #[test_case("tests/empty.toml" :: "Empty")]
-// #[test_case("tests/whitespace.toml" :: "Whitespace")]
+#[test_case("tests/empty.toml" :: "Empty")]
+#[test_case("tests/whitespace.toml" :: "Whitespace")]
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
