@@ -26,6 +26,8 @@ use test_case_derive::test_case;
 #[test_case("tests/AoTs.toml" :: "AoT's")]
 #[test_case("tests/empty.toml" :: "Empty")]
 #[test_case("tests/whitespace.toml" :: "Whitespace")]
+#[test_case("tests/AoT_simple.toml" :: "AoT - Simple")]
+#[test_case("tests/quoted_keys.toml" :: "Quoted Keys")]
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 

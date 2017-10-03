@@ -19,13 +19,14 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser from a string.
     pub fn new(input: &str) -> Parser {
-        let end = if input.is_empty() {
+        let src = input.chars().collect::<Vec<char>>();
+        let end = if src.is_empty() {
             0
         } else {
-            input.len() - 1 as usize
+            src.len() - 1
         };
         Parser {
-            src: input.chars().collect::<Vec<char>>(),
+            src: src,
             idx: 0,
             marker: 0,
             end: end,
@@ -60,12 +61,13 @@ impl Parser {
         }
     }
 
+    // @cleanup: remove
     fn not_end(&self) -> bool {
-        self.idx != self.end
+        self.idx < self.end
     }
 
     fn end(&self) -> bool {
-        !self.not_end()
+        self.idx >= self.end
     }
 
     /// Sets the marker to the index's current position
@@ -94,10 +96,10 @@ impl Parser {
             let _ = body.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
         }
 
-        // Switch to parsing tables and arrays of tables
+        // Switch to parsing tables/arrays of tables
         while self.idx != self.end {
             let (k, v) = self.dispatch_table();
-            let _ = body.append(k, v).map_err(|e| panic!(e.to_string()));
+            let _ = body.append(k, v).unwrap();
         }
 
         TOMLDocument(body)
@@ -183,21 +185,20 @@ impl Parser {
     /// the newline character. Only call this function if the presence of the pound sign
     /// is guaranteed.
     fn parse_comment(&mut self) -> Comment {
+        println!("Gonna parse me a comment!");
         // Find this comment's indentation w.r.t. the last non-ws character.
         self.mark();
-        while self.current() != '#' {
-            self.idx += 1;
-        }
+        while self.current() != '#' && self.inc() {}
 
         let indent = self.extract();
+        println!("Extracted indent");
         // Skip #
         self.idx += 1;
         self.mark();
+        println!("Middle of parse_comment");
 
         // The comment itself
-        while self.not_end() && !self.current().is_nl() {
-            self.idx += 1;
-        }
+        while self.not_end() && !self.current().is_nl() && self.inc() {}
 
         let comment = self.extract();
         Comment {
@@ -208,9 +209,20 @@ impl Parser {
 
     pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
         let mut comment = None;
-        self.mark();
+        let mut trail = "".to_string();
+        println!("Entered parse_comment_trail");
 
+        println!("idx: {} end: {} len: {}", self.idx, self.end,  self.src.len());
+        if self.end() {
+            println!("BREAKING");
+            return (comment, trail);
+        }
+        println!("Not breaking");
+        self.mark();
+        println!("Entered parse_comment_trail; current: {}", self.current());
+        println!("Can't make it here");
         loop {
+            println!("Loop pass");
             match self.current() {
                 '\n' => break,
                 '#' => {
@@ -228,6 +240,7 @@ impl Parser {
                 break;
             }
         }
+        println!("Exited loop");
         while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
         if self.current() == '\r' {
             self.inc();
@@ -235,8 +248,8 @@ impl Parser {
         if self.current() == '\n' {
             self.inc();
         }
-
-        let trail = if self.idx != self.marker || self.current().is_ws() {
+        println!("Skipped comment");
+        trail = if self.idx != self.marker || self.current().is_ws() {
             self.extract()
         } else {
             "".to_string()
@@ -244,30 +257,27 @@ impl Parser {
         (comment, trail)
     }
 
-    fn parse_key(&mut self) -> Key {
-        match self.current() {
-            '"' => self.parse_quoted_key(),
-            _ => self.parse_bare_key(),
-        }
-    }
-
     /// Parses and returns a key/value pair.
     pub fn parse_key_value(&mut self, parse_comment: bool) -> (Option<Key>, Item) {
         self.mark();
         while self.current().is_spaces() && self.inc() {}
         let indent = self.extract();
-        
+
         let key = self.parse_key();
         // @incomplete: Extract for full KV reproduction
         while self.current().is_ws_or_equal() && self.inc() {}
-
+        println!("Skipped separator");
         let mut val = self.parse_val();
+        println!("Parsed value: {:?}", val);
+
         if parse_comment {
+            println!("About to parse comment");
             let (comment, trail) = self.parse_comment_trail();
             val.meta_mut().comment = comment;
             val.meta_mut().trail = trail;
         }
         val.meta_mut().indent = indent;
+        println!("Returning KV pair");
 
         (Some(key), val)
     }
@@ -322,12 +332,7 @@ impl Parser {
 
                 // @incomplete: Needs to account for escaped backslashes
                 // Seek end of string
-                while self.src[self.idx] != '"' {
-                    self.idx += 1;
-                    if self.idx == self.src.len() {
-                        println!("Single line string failure {:?}", &self.src[self.marker..]);
-                    }
-                }
+                while self.current() != '"' && self.inc() {}
 
                 let payload = self.extract_exact();
                 // Clear '"'
@@ -445,7 +450,7 @@ impl Parser {
                     let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
                 }
                 self.inc();
-                
+
                 Item::InlineTable {
                     val: elems,
                     meta: meta,
@@ -454,7 +459,7 @@ impl Parser {
             // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
                 while self.current().not_in(" \t\n\r#,]}") && self.inc() {}
-                
+
                 // EOF shittiness
                 if !('0'...'9').contains(self.current()) {
                     self.idx -= 1;
@@ -503,42 +508,49 @@ impl Parser {
         }
     }
 
-    // @incomplete: Does straight up nothing
-    pub fn parse_quoted_key(&mut self) -> Key {
-        // Skip "
-        self.idx += 1;
+    /// Parses a Key at the current position;
+    /// WS before the key must be exhausted first at the callsite.
+    fn parse_key(&mut self) -> Key {
+        let key = match self.current() {
+            '"' | '\'' => self.parse_quoted_key(),
+            _ => self.parse_bare_key(),
+        };
+        println!("Parsed key: {:?} ", key);
+        key
+    }
+
+    fn parse_quoted_key(&mut self) -> Key {
+        let quote_style = self.current();
+        let key_type = match quote_style {
+            '"' => KeyType::Basic,
+            '\'' => KeyType::Literal,
+            _ => panic!("Should not have entered parse_quoted_key()"),
+        };
+        self.inc();
         self.mark();
 
-        while self.src[self.idx] != '"' {
-            self.idx += 1;
-        }
-
+        while self.current() != quote_style && self.inc() {}
         let key = self.extract();
-        // Skip "
-        self.idx += 1;
+        self.inc();
 
         Key {
-            t: KeyType::Quoted,
-            actual: key.clone(),
-            raw: key,
+            t: key_type,
+            key: key,
         }
     }
 
-    // @cleanup: Old code
-    pub fn parse_bare_key(&mut self) -> Key {
+    fn parse_bare_key(&mut self) -> Key {
         self.mark();
-        while self.src[self.idx].is_bare_key_char() {
-            self.idx += 1;
-        }
+        while self.current().is_bare_key_char() && self.inc() {}
         let key = self.extract();
 
         Key {
             t: KeyType::Bare,
-            actual: key.clone(),
-            raw: key,
+            key: key,
         }
     }
 
+    /// Rewinds parser to the beginning of the current line
     fn rewind(&mut self) {
         while self.idx != 0 && self.src[self.idx - 1] != '\n' {
             self.idx -= 1;
@@ -571,8 +583,7 @@ impl Parser {
         let name = self.extract_exact();
         let key = Key {
             t: KeyType::Bare,
-            raw: name.clone(),
-            actual: name.clone(),
+            key: name.to_string(),
         };
         self.inc();
         if is_array {
@@ -588,7 +599,7 @@ impl Parser {
         while !self.end() {
             let rewind = self.idx;
             let (key, item) = self.parse_item();
-            
+
             if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
                 self.idx = rewind;
                 break;

@@ -7,7 +7,7 @@ use comment::Comment;
 pub enum StringType {
     SLB,
     /// The multi-line basic string's in-file representation
-    /// can differ from what it actually represents, se we store
+    /// can differ from what it actually represents, so we store
     /// the raw string here
     MLB(String),
     SLL,
@@ -32,31 +32,29 @@ impl LineMeta {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-// @todo: Store raw in enum variant
-// @ todo: Read ABNF for keys
 pub enum KeyType {
     Bare,
-    Quoted,
+    Basic,
+    Literal,
 }
 
 #[derive(Hash, Clone)]
 pub struct Key {
     pub t: KeyType,
-    pub raw: String,
-    pub actual: String,
+    pub key: String,
 }
 
 impl Eq for Key {}
 
 impl PartialEq for Key {
     fn eq(&self, other: &Key) -> bool {
-        self.actual == other.actual
+        self.key == other.key
     }
 }
 
 impl ::std::fmt::Debug for Key {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{}", self.actual)
+        write!(f, "{}", self.key)
     }
 }
 
@@ -64,10 +62,11 @@ impl Key {
     pub fn as_string(&self) -> String {
         let quote = match self.t {
             KeyType::Bare => "",
-            KeyType::Quoted => r#"""#,
+            KeyType::Basic => "\"",
+            KeyType::Literal => "'",
         };
 
-        format!("{}{}{}", quote, self.raw, quote)
+        format!("{}{}{}", quote, self.key, quote)
     }
 }
 
