@@ -225,7 +225,7 @@ impl Parser {
                 break;
             }
         }
-        while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
+        while self.current().is_spaces() && self.inc() {}
         if self.current() == '\r' {
             self.inc();
         }
@@ -249,7 +249,7 @@ impl Parser {
 
         let mut key = self.parse_key();
         self.mark();
-        while self.current().is_ws_or_equal() && self.inc() {}
+        while self.current().is_kv_sep() && self.inc() {}
         key.sep = self.extract_exact();
 
         let mut val = self.parse_val();
@@ -443,7 +443,8 @@ impl Parser {
                 while self.current().not_in(" \t\n\r#,]}") && self.inc() {}
 
                 // EOF shittiness
-                if !('0'...'9').contains(self.current()) {
+                // @cleanup: rewrite with in() method on TOMLchar
+                if !self.current().is_digit(10) {
                     self.idx -= 1;
                 }
 
