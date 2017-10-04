@@ -35,7 +35,7 @@ impl Parser {
 
     /// Extract the value between marker and index.
     fn extract(&self) -> String {
-        let end = if self.not_end() {
+        let end = if !self.end() {
             self.idx
         } else {
             self.idx + 1
@@ -59,11 +59,6 @@ impl Parser {
         } else {
             false
         }
-    }
-
-    // @cleanup: remove
-    fn not_end(&self) -> bool {
-        self.idx < self.end
     }
 
     fn end(&self) -> bool {
@@ -198,7 +193,7 @@ impl Parser {
         println!("Middle of parse_comment");
 
         // The comment itself
-        while self.not_end() && !self.current().is_nl() && self.inc() {}
+        while !self.end() && !self.current().is_nl() && self.inc() {}
 
         let comment = self.extract();
         Comment {
