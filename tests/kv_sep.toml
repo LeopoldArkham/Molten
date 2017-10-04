@@ -1,0 +1,5 @@
+key1 = "Normal"
+key2="No spaces"
+key3   =    "Some spaces"
+key4    =       "Tabs"
+key5                =               "Tabs and Spaces"
