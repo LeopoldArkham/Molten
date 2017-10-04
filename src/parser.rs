@@ -210,19 +210,12 @@ impl Parser {
     pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
         let mut comment = None;
         let mut trail = "".to_string();
-        println!("Entered parse_comment_trail");
 
-        println!("idx: {} end: {} len: {}", self.idx, self.end,  self.src.len());
         if self.end() {
-            println!("BREAKING");
             return (comment, trail);
         }
-        println!("Not breaking");
         self.mark();
-        println!("Entered parse_comment_trail; current: {}", self.current());
-        println!("Can't make it here");
         loop {
-            println!("Loop pass");
             match self.current() {
                 '\n' => break,
                 '#' => {
@@ -240,7 +233,6 @@ impl Parser {
                 break;
             }
         }
-        println!("Exited loop");
         while self.current().is_ws() && !self.current().is_nl() && self.inc() {}
         if self.current() == '\r' {
             self.inc();
@@ -248,7 +240,7 @@ impl Parser {
         if self.current() == '\n' {
             self.inc();
         }
-        println!("Skipped comment");
+
         trail = if self.idx != self.marker || self.current().is_ws() {
             self.extract()
         } else {
@@ -266,18 +258,14 @@ impl Parser {
         let key = self.parse_key();
         // @incomplete: Extract for full KV reproduction
         while self.current().is_ws_or_equal() && self.inc() {}
-        println!("Skipped separator");
         let mut val = self.parse_val();
-        println!("Parsed value: {:?}", val);
 
         if parse_comment {
-            println!("About to parse comment");
             let (comment, trail) = self.parse_comment_trail();
             val.meta_mut().comment = comment;
             val.meta_mut().trail = trail;
         }
         val.meta_mut().indent = indent;
-        println!("Returning KV pair");
 
         (Some(key), val)
     }
@@ -515,7 +503,6 @@ impl Parser {
             '"' | '\'' => self.parse_quoted_key(),
             _ => self.parse_bare_key(),
         };
-        println!("Parsed key: {:?} ", key);
         key
     }
 
