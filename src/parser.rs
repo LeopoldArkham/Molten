@@ -7,6 +7,7 @@ use container::Container;
 use chrono::DateTime as ChronoDateTime;
 
 use std::str::FromStr;
+use std::cmp::max;
 
 #[derive(Debug)]
 pub struct Parser {
@@ -20,11 +21,7 @@ impl Parser {
     /// Create a new parser from a string.
     pub fn new(input: &str) -> Parser {
         let src = input.chars().collect::<Vec<char>>();
-        let end = if src.is_empty() {
-            0
-        } else {
-            src.len() - 1
-        };
+        let end = max(0, src.len() as isize - 1) as usize;
         Parser {
             src: src,
             idx: 0,
