@@ -8,6 +8,7 @@ impl Index<&'static str> for TOMLDocument {
     fn index(&self, name: &str) -> &Self::Output {
         let k = Key {
             t: KeyType::Bare,
+            sep: "".to_string(),
             key: name.to_string(),
         };
         let idx = self.0.map.get(&k).expect("Invalid key");
@@ -46,6 +47,7 @@ impl Index<&'static str> for Item {
     fn index(&self, name: &str) -> &Self::Output {
         let k = Key {
             t: KeyType::Bare,
+            sep: "".to_string(),
             key: name.to_string(),
         };
 

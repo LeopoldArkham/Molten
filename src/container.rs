@@ -62,9 +62,11 @@ impl Container {
                         buf
                     }
                     _ => {
-                        format!("{}{} = {}{}{}",
+                        let k = k.unwrap();
+                        format!("{}{}{}{}{}{}",
                                 v.meta().indent,
-                                k.unwrap().as_string(),
+                                k.as_string(),
+                                k.sep,
                                 v.as_string(),
                                 v.meta().comment(),
                                 v.meta().trail)

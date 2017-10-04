@@ -41,6 +41,7 @@ pub enum KeyType {
 #[derive(Hash, Clone)]
 pub struct Key {
     pub t: KeyType,
+    pub sep: String,
     pub key: String,
 }
 

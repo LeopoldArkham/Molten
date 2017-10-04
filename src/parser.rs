@@ -247,9 +247,11 @@ impl Parser {
         while self.current().is_spaces() && self.inc() {}
         let indent = self.extract();
 
-        let key = self.parse_key();
-        // @incomplete: Extract for full KV reproduction
+        let mut key = self.parse_key();
+        self.mark();
         while self.current().is_ws_or_equal() && self.inc() {}
+        key.sep = self.extract_exact();
+
         let mut val = self.parse_val();
 
         if parse_comment {
@@ -514,6 +516,7 @@ impl Parser {
 
         Key {
             t: key_type,
+            sep: "".to_string(),
             key: key,
         }
     }
@@ -525,6 +528,7 @@ impl Parser {
 
         Key {
             t: KeyType::Bare,
+            sep: "".to_string(),
             key: key,
         }
     }
@@ -562,6 +566,7 @@ impl Parser {
         let name = self.extract_exact();
         let key = Key {
             t: KeyType::Bare,
+            sep: "".to_string(),
             key: name.to_string(),
         };
         self.inc();
