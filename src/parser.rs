@@ -180,17 +180,14 @@ impl Parser {
     /// the newline character. Only call this function if the presence of the pound sign
     /// is guaranteed.
     fn parse_comment(&mut self) -> Comment {
-        println!("Gonna parse me a comment!");
         // Find this comment's indentation w.r.t. the last non-ws character.
         self.mark();
         while self.current() != '#' && self.inc() {}
 
         let indent = self.extract();
-        println!("Extracted indent");
         // Skip #
         self.idx += 1;
         self.mark();
-        println!("Middle of parse_comment");
 
         // The comment itself
         while !self.end() && !self.current().is_nl() && self.inc() {}
