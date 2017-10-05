@@ -1,7 +1,6 @@
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 use container::Container;
-use comment::Comment;
 
 #[derive(Debug, Clone)]
 pub enum StringType {
@@ -30,6 +29,22 @@ impl LineMeta {
         }
     }
 }
+
+/// Not included as a struct variant on Items
+/// Because itsinclusion in LineMeta causes
+/// recursion without indirection
+#[derive(Debug, PartialEq, Clone)]
+pub struct Comment {
+    pub indent: String,
+    pub comment: String,
+}
+
+impl Comment {
+    pub fn as_string(&self) -> String {
+        format!("{}#{}", self.indent, self.comment)
+    }
+}
+
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {

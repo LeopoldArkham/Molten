@@ -1,7 +1,6 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
-use comment::Comment;
 use container::Container;
 
 use chrono::DateTime as ChronoDateTime;

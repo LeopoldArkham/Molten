@@ -11,4 +11,3 @@ pub mod parser;
 mod index;
 mod items;
 mod container;
-mod comment;
