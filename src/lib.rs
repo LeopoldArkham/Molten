@@ -8,6 +8,7 @@ extern crate chrono;
 mod tomlchar;
 mod tomldoc;
 pub mod parser;
+mod api;
 mod index;
 mod items;
 mod container;

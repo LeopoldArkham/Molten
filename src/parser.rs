@@ -1,6 +1,7 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
+use api::*;
 use container::Container;
 
 use chrono::DateTime as ChronoDateTime;
@@ -102,6 +103,7 @@ impl Parser {
             '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
             '[' => self.parse_table(),
             _ => {
+                println!("Current: {}", self.src[self.idx..].iter().collect::<String>());
                 panic!("Should not have entered dispatch_table()");
             }
         }
@@ -581,7 +583,7 @@ impl Parser {
             let rewind = self.idx;
             let (key, item) = self.parse_item();
 
-            if item.is_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
+            if item.is_real_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
                 self.idx = rewind;
                 break;
             }

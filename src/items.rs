@@ -31,7 +31,7 @@ impl LineMeta {
 }
 
 /// Not included as a struct variant on Items
-/// Because itsinclusion in LineMeta causes
+/// Because its inclusion in LineMeta causes
 /// recursion without indirection
 #[derive(Debug, PartialEq, Clone)]
 pub struct Comment {
@@ -123,14 +123,6 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn is_value(&self) -> bool {
-        use self::Item::*;
-        match *self {
-            WS(_) | Comment(_) => false,
-            _ => true,
-        }
-    }
-
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
         match *self {
@@ -145,13 +137,6 @@ impl Item {
             InlineTable { .. } => 8,
             Str { .. } => 9,
             AoT(_) => 10,
-        }
-    }
-
-    pub fn is_table(&self) -> bool {
-        match self.discriminant() {
-            7 | 10 => true,
-            _ => false,
         }
     }
 
@@ -214,7 +199,7 @@ impl Item {
             }
             Str { ref t, ref val, .. } => {
                 match *t {
-                    StringType::MLB(ref s) => format!(r#"{}"#, s),
+                    StringType::MLB(ref raw) => format!(r#"{}"#, raw),
                     StringType::SLB => format!(r#""{}""#, val),
                     StringType::SLL => format!(r#"'{}'"#, val),
                     StringType::MLL => format!(r#"'''{}'''"#, val),
