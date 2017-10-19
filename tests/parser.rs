@@ -29,6 +29,9 @@ use test_case_derive::test_case;
 #[test_case("tests/AoT_simple.toml" :: "AoT - Simple")]
 #[test_case("tests/quoted_keys.toml" :: "Quoted Keys")]
 #[test_case("tests/kv_sep.toml" :: "Kv Separators")]
+/// This tests the parser's correctness by parsing each of the
+/// above files and attempting to reproduce them from scratch.
+/// Any difference between original and reproduction is a bug.
 fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
@@ -39,9 +42,10 @@ fn parser<P: AsRef<Path> + Display>(path: P) {
     let mut parser = Molten::parser::Parser::new(&input);
     let res = parser.parse();
 
-    let mut f = File::create("tests/res.toml").unwrap();
-    println!("{:#?}", res);
-    let _ = f.write(res.as_string().as_bytes()).unwrap();
+    // Knobs for debugging
+    // let mut f = File::create("tests/res.toml").unwrap();
+    // println!("{:#?}", res);
+    // let _ = f.write(res.as_string().as_bytes()).unwrap();
 
     assert_eq!(input, res.as_string());
 }
