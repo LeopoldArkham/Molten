@@ -26,7 +26,7 @@ inline = {a = true, b = true, c = false}
         hello = "world"
     this = "works"
     does = "this?"
-    # lone comment here?
+    # lone comment here
     it_does = true#WOW
 
     long = "shot"
@@ -40,8 +40,8 @@ inline = {a = true, b = true, c = false}
 
     [second.table]#Table comment
 true = false
-list = ["Er", "mah", "Gahd!"]
-# Finish Him!
+list = ["A", "B", "C"]
+# This used to be hard:
 inline = {a = true, b = true, c = false}
 
 [[parsethis]]
@@ -72,10 +72,10 @@ flag = false
 inline = {a = true, b = true, c = false} # test
 val = -1
 flag = true
-name_1 = "Patapouf"
-name_2 = 'Poupouf'
-name_3 = """Patapouf"""
-name_4 = '''Poupouf'''
+name_1 = "Words"
+name_2 = 'Words'
+name_3 = """Words"""
+name_4 = '''Words'''
 sdf = """ hi"""
 array = ["test", "test", "test"]
 a_date = 1979-05-27T00:32:00.999999-07:00
