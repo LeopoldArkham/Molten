@@ -441,7 +441,6 @@ impl Parser {
                 while self.current().not_in(" \t\n\r#,]}") && self.inc() {}
 
                 // EOF shittiness
-                // @cleanup: rewrite with in() method on TOMLchar
                 if !self.current().is_digit(10) {
                     self.idx -= 1;
                 }
