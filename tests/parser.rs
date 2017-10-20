@@ -40,7 +40,7 @@ fn parser<P: AsRef<Path> + Display>(path: P) {
     f.read_to_string(&mut input).expect("Error reading file:");
 
     let mut parser = Molten::parser::Parser::new(&input);
-    let res = parser.parse();
+    let res = parser.parse().unwrap();
 
     // Knobs for debugging
     // let mut f = File::create("tests/res.toml").unwrap();

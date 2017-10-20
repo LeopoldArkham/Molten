@@ -4,6 +4,8 @@
 #[macro_use]
 extern crate pretty_assertions;
 extern crate chrono;
+#[macro_use]
+extern crate error_chain;
 
 mod tomlchar;
 mod tomldoc;
@@ -12,3 +14,4 @@ mod api;
 mod index;
 mod items;
 mod container;
+mod errors;

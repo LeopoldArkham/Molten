@@ -6,6 +6,7 @@ authors = ["LeopoldArkham <leopold.arkham@gmail.com>"]
 [dependencies]
 chrono = "0.3.0"
 pretty_assertions = "0.1.2"
+error-chain = "0.11.0"
 
 [dev-dependencies]
 test-case-derive = "0.1.4"

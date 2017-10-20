@@ -2,6 +2,7 @@ use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
 use api::*;
+use errors::*;
 use container::Container;
 
 use chrono::DateTime as ChronoDateTime;
@@ -72,9 +73,16 @@ impl Parser {
         self.src[self.idx]
     }
 
+    /// Create error at the current position.
+    fn parse_error(&self) -> Error {
+        // TODO
+        let (line, col) = (0, 0);
+        ErrorKind::ParseError(line, col).into()
+    }
+
     /// Parses the input into a TOMLDocument
     /// @cleanup: conflicts with parse_item wrt table parsing
-    pub fn parse(&mut self) -> TOMLDocument {
+    pub fn parse(&mut self) -> Result<TOMLDocument> {
         let mut body = Container::new();
 
         // Take all keyvals outside of tables/AoT's
@@ -84,20 +92,20 @@ impl Parser {
                 break;
             }
             // Take and wrap one KV pair
-            let kv = self.parse_item();
-            let _ = body.append(kv.0, kv.1).map_err(|e| panic!(e.to_string()));
+            let kv = self.parse_item()?;
+            let _ = body.append(kv.0, kv.1).chain_err(|| self.parse_error())?;
         }
 
         // Switch to parsing tables/arrays of tables
         while self.idx != self.end {
-            let (k, v) = self.dispatch_table();
-            let _ = body.append(k, v).unwrap();
+            let (k, v) = self.dispatch_table()?;
+            body.append(k, v).chain_err(|| self.parse_error())?;
         }
 
-        TOMLDocument(body)
+        Ok(TOMLDocument(body))
     }
 
-    pub fn dispatch_table(&mut self) -> (Key, Item) {
+    pub fn dispatch_table(&mut self) -> Result<(Key, Item)> {
         while self.current().is_spaces() && self.inc() {}
         match self.current() {
             '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
@@ -115,14 +123,14 @@ impl Parser {
 
     #[allow(non_snake_case)]
     /// Parses AoTs
-    pub fn parse_AoT(&mut self) -> (Key, Item) {
+    pub fn parse_AoT(&mut self) -> Result<(Key, Item)> {
         let mut array = Vec::new();
-        let (key, first) = self.parse_table();
+        let (key, first) = self.parse_table()?;
         array.push(first);
 
         while !self.end() {
             let rewind = self.idx;
-            let (k, table) = self.parse_table();
+            let (k, table) = self.parse_table()?;
             if key.as_string() == k.as_string() {
                 array.push(table);
             } else {
@@ -130,12 +138,12 @@ impl Parser {
                 break;
             }
         }
-        (key, Item::AoT(array))
+        Ok((key, Item::AoT(array)))
     }
 
     /// Attempts to parse the next item and returns it, along with its key
     /// if the item is value-like.
-    pub fn parse_item(&mut self) -> (Option<Key>, Item) {
+    pub fn parse_item(&mut self) -> Result<(Option<Key>, Item)> {
         // Mark start of whitespace
         self.mark();
         loop {
@@ -144,11 +152,11 @@ impl Parser {
                 // TODO: merge consecutive WS
                 '\n' => {
                     self.idx += 1;
-                    return (None, Item::WS(self.extract()));
+                    return Ok((None, Item::WS(self.extract())));
                 }
                 // EOF ws
                 ' ' | '\t' if self.end() => {
-                    return (None, Item::WS(self.extract()));
+                    return Ok((None, Item::WS(self.extract())));
                 }
                 // Non line-ending ws, skip.
                 ' ' | '\t' | '\r' => self.idx += 1,
@@ -158,14 +166,14 @@ impl Parser {
                     let (c, trail) = self.parse_comment_trail();
                     let mut c = c.expect("There really should be a comment here - parse_item()");
                     c.comment += &trail;
-                    return (None, Item::Comment(c));
+                    return Ok((None, Item::Comment(c)));
                 }
                 '[' => {
-                    let r = self.dispatch_table();
-                    return (r.0.into(), r.1);
+                    let r = self.dispatch_table()?;
+                    return Ok((r.0.into(), r.1));
                 }
                 _ => {
-                    // Return to begining of whitespace so it gets included
+                    // Return to beginning of whitespace so it gets included
                     // as indentation into the value about to be parsed
                     self.idx = self.marker;
                     return self.parse_key_value(true);
@@ -240,7 +248,7 @@ impl Parser {
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> (Option<Key>, Item) {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Option<Key>, Item)> {
         self.mark();
         while self.current().is_spaces() && self.inc() {}
         let indent = self.extract();
@@ -250,7 +258,7 @@ impl Parser {
         while self.current().is_kv_sep() && self.inc() {}
         key.sep = self.extract_exact();
 
-        let mut val = self.parse_val();
+        let mut val = self.parse_val()?;
 
         if parse_comment {
             let (comment, trail) = self.parse_comment_trail();
@@ -259,11 +267,11 @@ impl Parser {
         }
         val.meta_mut().indent = indent;
 
-        (Some(key), val)
+        Ok((Some(key), val))
     }
 
     /// Attempts to parse a value at the current position.
-    pub fn parse_val(&mut self) -> Item {
+    pub fn parse_val(&mut self) -> Result<Item> {
         self.mark();
         let meta: LineMeta = Default::default();
         match self.current() {
@@ -298,11 +306,11 @@ impl Parser {
                 self.inc();
                 let raw = self.extract();
 
-                Item::Str {
+                Ok(Item::Str {
                     t: StringType::MLB(raw),
                     val: actual,
                     meta: meta,
-                }
+                })
             }
             // Single Line Basic String
             '"' => {
@@ -318,11 +326,11 @@ impl Parser {
                 // Clear '"'
                 self.inc();
 
-                Item::Str {
+                Ok(Item::Str {
                     t: StringType::SLB,
                     val: payload,
                     meta: meta,
-                }
+                })
             }
             // Multi Line literal String
             '\'' if (self.src[self.idx + 1] == '\'' && self.src[self.idx + 2] == '\'') => {
@@ -338,11 +346,11 @@ impl Parser {
                 self.idx += 2;
                 self.inc();
 
-                Item::Str {
+                Ok(Item::Str {
                     t: StringType::MLL,
                     val: payload,
                     meta: meta,
-                }
+                })
             }
             // Single Line literal String
             '\'' => {
@@ -356,31 +364,31 @@ impl Parser {
                 let payload = self.extract_exact();
                 self.inc();
 
-                Item::Str {
+                Ok(Item::Str {
                     t: StringType::SLL,
                     val: payload,
                     meta: meta,
-                }
+                })
             }
             // Boolean: true
             't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
                 self.idx += 3;
                 self.inc();
 
-                Item::Bool {
+                Ok(Item::Bool {
                     val: true,
                     meta: meta,
-                }
+                })
             }
             // Boolean: False
             'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
                 self.idx += 4;
                 self.inc();
 
-                Item::Bool {
+                Ok(Item::Bool {
                     val: false,
                     meta: meta,
-                }
+                })
             }
             // Array
             '[' => {
@@ -400,7 +408,7 @@ impl Parser {
                     }
                     let next = match self.current() {
                         '#' => Item::Comment(self.parse_comment()),
-                        _ => self.parse_val(),
+                        _ => self.parse_val()?,
                     };
                     elems.push(next);
                 }
@@ -412,9 +420,9 @@ impl Parser {
                 };
 
                 if res.is_homogeneous() {
-                    res
+                    Ok(res)
                 } else {
-                    panic!("Non homogeneous array");
+                    bail!(ErrorKind::MixedArrayTypes);
                 }
             }
             // Inline Table
@@ -426,15 +434,15 @@ impl Parser {
                     while self.src[self.idx].is_ws() || self.current() == ',' {
                         self.idx += 1;
                     }
-                    let (key, val) = self.parse_key_value(false);
-                    let _ = elems.append(key, val).map_err(|e| panic!(e.to_string()));
+                    let (key, val) = self.parse_key_value(false)?;
+                    let _ = elems.append(key, val)?;
                 }
                 self.inc();
 
-                Item::InlineTable {
+                Ok(Item::InlineTable {
                     val: elems,
                     meta: meta,
-                }
+                })
             }
             // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
@@ -454,37 +462,30 @@ impl Parser {
 
                 // Forgiveness > Permission
                 if let Ok(res) = i64::from_str(&clean) {
-                    return Item::Integer {
+                    return Ok(Item::Integer {
                         val: res,
                         meta: meta,
                         raw: raw,
-                    };
+                    });
                 } else if let Ok(res) = f64::from_str(&clean) {
                     // @incomplete: "Similar to integers, you may use underscores to enhance
                     // readability. Each underscore must be surrounded by at least one digit."
-                    return Item::Float {
+                    return Ok(Item::Float {
                         val: res,
                         meta: meta,
                         raw: raw,
-                    };
+                    });
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
-                    return Item::DateTime {
+                    return Ok(Item::DateTime {
                         val: res,
                         raw: clean,
                         meta: meta,
-                    };
+                    });
+                } else {
+                    bail!(ErrorKind::InvalidNumberOrDate);
                 }
-
-                // @incomplete: Error management
-                println!("working on: {:?}", raw);
-                panic!("Could not parse to int, float or DateTime");
             }
-            _ => {
-                // @incomplete: Error management
-                println!("Current: {}",
-                         self.src[self.idx..].iter().collect::<String>());
-                panic!("Could not infer type of value being parsed");
-            }
+            ch => bail!(ErrorKind::UnexpectedChar(ch))
         }
     }
 
@@ -538,7 +539,7 @@ impl Parser {
         }
     }
 
-    pub fn parse_table(&mut self) -> (Key, Item) {
+    pub fn parse_table(&mut self) -> Result<(Key, Item)> {
         // Indentation
         self.rewind();
         self.mark();
@@ -580,16 +581,16 @@ impl Parser {
         // Maybe cache in a map by start index?
         while !self.end() {
             let rewind = self.idx;
-            let (key, item) = self.parse_item();
+            let (key, item) = self.parse_item()?;
 
             if item.is_real_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
                 self.idx = rewind;
                 break;
             }
-            let _ = values.append(key, item).map_err(|e| panic!(e.to_string()));
+            let _ = values.append(key, item)?;
         }
 
-        (key,
+        Ok((key,
          Item::Table {
             is_array: is_array,
             val: values,
@@ -598,6 +599,6 @@ impl Parser {
                 comment: comment,
                 trail: trail,
             },
-        })
+        }))
     }
 }
