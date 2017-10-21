@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use items::*;
+use errors::*;
 
 #[derive(Debug, Clone)]
 pub struct Container {
@@ -16,11 +17,11 @@ impl Container {
         }
     }
 
-    pub fn append<K: Into<Option<Key>>>(&mut self, _key: K, item: Item) -> Result<(), String> {
+    pub fn append<K: Into<Option<Key>>>(&mut self, _key: K, item: Item) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
             if self.map.contains_key(&k) {
-                return Err(format!("Cannot override existing key: {:?}", k));
+                bail!(ErrorKind::DuplicateKey(k.key));
             }
             self.map.insert(k, self.body.len());
         }
