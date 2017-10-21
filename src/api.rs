@@ -1,7 +1,7 @@
 use items::*;
 
-impl Item {
-    
+impl<'a> Item<'a> {
+
     pub fn is_value(&self) -> bool {
         match self.discriminant() {
             0 | 1 => false,

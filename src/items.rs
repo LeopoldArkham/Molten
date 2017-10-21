@@ -5,46 +5,22 @@ use container::Container;
 #[derive(Debug, Clone)]
 pub enum StringType {
     SLB,
-    /// The multi-line basic string's in-file representation
-    /// can differ from what it actually represents, so we store
-    /// the raw string here
-    MLB(String),
+    MLB,
     SLL,
     MLL,
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct LineMeta {
-    pub indent: String,
-    pub comment: Option<Comment>,
-    pub trail: String,
+pub struct LineMeta<'a> {
+    /// Whitespace before a value.
+    pub indent: &'a str,
+    /// Whitespace after a value, but before a comment.
+    pub comment_ws: &'a str,
+    /// Comment, starting with # character, or empty string if no comment.
+    pub comment: &'a str,
+    /// Trailing newline.
+    pub trail: &'a str,
 }
-
-impl LineMeta {
-    pub fn comment(&self) -> String {
-        if let Some(ref c) = self.comment {
-            c.as_string()
-        } else {
-            "".to_string()
-        }
-    }
-}
-
-/// Not included as a struct variant on Items
-/// Because its inclusion in LineMeta causes
-/// recursion without indirection
-#[derive(Debug, PartialEq, Clone)]
-pub struct Comment {
-    pub indent: String,
-    pub comment: String,
-}
-
-impl Comment {
-    pub fn as_string(&self) -> String {
-        format!("{}#{}", self.indent, self.comment)
-    }
-}
-
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {
@@ -54,27 +30,27 @@ pub enum KeyType {
 }
 
 #[derive(Hash, Clone)]
-pub struct Key {
+pub struct Key<'a> {
     pub t: KeyType,
-    pub sep: String,
-    pub key: String,
+    pub sep: &'a str,
+    pub key: &'a str,
 }
 
-impl Eq for Key {}
+impl<'a> Eq for Key<'a> {}
 
-impl PartialEq for Key {
+impl<'a> PartialEq for Key<'a> {
     fn eq(&self, other: &Key) -> bool {
         self.key == other.key
     }
 }
 
-impl ::std::fmt::Debug for Key {
+impl<'a> ::std::fmt::Debug for Key<'a> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "{}", self.key)
     }
 }
 
-impl Key {
+impl<'a> Key<'a> {
     pub fn as_string(&self) -> String {
         let quote = match self.t {
             KeyType::Bare => "",
@@ -87,47 +63,48 @@ impl Key {
 }
 
 #[derive(Debug, Clone)]
-pub enum Item {
+pub enum Item<'a> {
     // @todo: Move comment struct content here. Also display logic
-    WS(String),
-    Comment(Comment),
+    WS(&'a str),
+    Comment (LineMeta<'a>),
     Integer {
         val: i64,
-        meta: LineMeta,
-        raw: String,
+        meta: LineMeta<'a>,
+        raw: &'a str,
     },
     Float {
         val: f64,
-        meta: LineMeta,
-        raw: String,
+        meta: LineMeta<'a>,
+        raw: &'a str,
     },
-    Bool { val: bool, meta: LineMeta },
+    Bool { val: bool, meta: LineMeta<'a> },
     DateTime {
         val: ChronoDateTime<FixedOffset>,
-        raw: String,
-        meta: LineMeta,
+        raw: &'a str,
+        meta: LineMeta<'a>,
     },
-    Array { val: Vec<Item>, meta: LineMeta },
+    Array { val: Vec<Item<'a>>, meta: LineMeta<'a> },
     Table {
         is_array: bool,
-        val: Container,
-        meta: LineMeta,
+        val: Container<'a>,
+        meta: LineMeta<'a>,
     },
-    InlineTable { val: Container, meta: LineMeta },
+    InlineTable { val: Container<'a>, meta: LineMeta<'a> },
     Str {
         t: StringType,
-        val: String,
-        meta: LineMeta,
+        val: &'a str, // TODO, make Cow
+        original: &'a str,
+        meta: LineMeta<'a>,
     },
-    AoT(Vec<Item>),
+    AoT(Vec<Item<'a>>),
 }
 
-impl Item {
+impl<'a> Item<'a> {
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
         match *self {
             WS(_) => 0,
-            Comment(_) => 1,
+            Comment (_) => 1,
             Integer { .. } => 2,
             Float { .. } => 3,
             Bool { .. } => 4,
@@ -164,8 +141,10 @@ impl Item {
     pub fn as_string(&self) -> String {
         use self::Item::*;
         match *self {
-            WS(ref s) => s.clone(),
-            Comment(ref c) => c.as_string(),
+            WS(s) => s.into(),
+            Comment(ref meta) => {
+                format!("{}{}{}", meta.indent, meta.comment, meta.trail)
+            }
             Integer { ref raw, .. } => format!("{}", raw),
             Float { ref raw, .. } => format!("{}", raw),
             Bool { val, .. } => format!("{}", val),
@@ -188,7 +167,7 @@ impl Item {
                                           v.meta().indent,
                                           k.clone().unwrap().as_string(),
                                           v.as_string(),
-                                          v.meta().comment(),
+                                          v.meta().comment,
                                           v.meta().trail));
                     if i != val.body.len() - 1 {
                         buf.push_str(", ");
@@ -197,12 +176,12 @@ impl Item {
                 buf.push_str("}");
                 buf
             }
-            Str { ref t, ref val, .. } => {
+            Str { ref t, ref val, ref original, .. } => {
                 match *t {
-                    StringType::MLB(ref raw) => format!(r#"{}"#, raw),
-                    StringType::SLB => format!(r#""{}""#, val),
-                    StringType::SLL => format!(r#"'{}'"#, val),
-                    StringType::MLL => format!(r#"'''{}'''"#, val),
+                    StringType::MLB => format!(r#""""{}""""#, original),
+                    StringType::SLB => format!(r#""{}""#, original),
+                    StringType::SLL => format!(r#"'{}'"#, original),
+                    StringType::MLL => format!(r#"'''{}'''"#, original),
                 }
             }
             AoT(ref body) => {
@@ -215,7 +194,7 @@ impl Item {
         }
     }
 
-    pub fn meta<'a>(&'a self) -> &'a LineMeta {
+    pub fn meta(&self) -> &LineMeta<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) => {
@@ -233,7 +212,7 @@ impl Item {
         }
     }
 
-    pub fn meta_mut<'a>(&'a mut self) -> &'a mut LineMeta {
+    pub fn meta_mut(&mut self) -> &mut LineMeta<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) => {

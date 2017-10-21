@@ -18,5 +18,12 @@ error_chain! {
             description("Unexpected character")
             display("Unexpected character: {}", ch)
         }
+        UnexpectedEof {
+            description("Unepxected end of file")
+        }
+        InvalidCharInString(ch: char) {
+            description("Invalid character in string")
+            display("Invalid character '{}' in string", ch) // XXX escaping
+        }
     }
 }

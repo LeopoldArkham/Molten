@@ -4,25 +4,26 @@ use items::*;
 use errors::*;
 
 #[derive(Debug, Clone)]
-pub struct Container {
-    pub(crate) map: HashMap<Key, usize>,
-    pub(crate) body: Vec<(Option<Key>, Item)>,
+pub struct Container<'a> {
+    pub(crate) map: HashMap<Key<'a>, usize>,
+    pub(crate) body: Vec<(Option<Key<'a>>, Item<'a>)>,
 }
 
-impl Container {
-    pub fn new() -> Container {
+impl<'a> Container<'a> {
+    pub fn new() -> Container<'a> {
         Container {
             map: HashMap::new(),
             body: Vec::new(),
         }
     }
 
-    pub fn append<K: Into<Option<Key>>>(&mut self, _key: K, item: Item) -> Result<()> {
+    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
-            if self.map.contains_key(&k) {
-                bail!(ErrorKind::DuplicateKey(k.key));
-            }
+            // TODO: Fix AoT
+            // if self.map.contains_key(&k) {
+            //     bail!(ErrorKind::DuplicateKey(k.key.into()));
+            // }
             self.map.insert(k, self.body.len());
         }
         self.body.push((key, item));
@@ -40,12 +41,13 @@ impl Container {
                             true => ("[[", "]]"),
                             false => ("[", "]"),
                         };
-                        format!("{}{}{}{}{}{}{}",
+                        format!("{}{}{}{}{}{}{}{}",
                         v.meta().indent,
                         open,
                         k.unwrap().as_string(),
                         close,
-                        v.meta().comment(),
+                        v.meta().comment_ws,
+                        v.meta().comment,
                         v.meta().trail,
                         v.as_string(),)
                     }
@@ -53,10 +55,11 @@ impl Container {
                         let mut buf = String::new();
                         let key = k.unwrap().as_string();
                         for table in vec {
-                            buf.push_str(&format!("{}[[{}]]{}{}",
+                            buf.push_str(&format!("{}[[{}]]{}{}{}",
                                                   table.meta().indent,
                                                   key,
-                                                  table.meta().comment(),
+                                                  table.meta().comment_ws,
+                                                  table.meta().comment,
                                                   table.meta().trail));
                             buf.push_str(&table.as_string());
                         }
@@ -64,12 +67,13 @@ impl Container {
                     }
                     _ => {
                         let k = k.unwrap();
-                        format!("{}{}{}{}{}{}",
+                        format!("{}{}{}{}{}{}{}",
                                 v.meta().indent,
                                 k.as_string(),
                                 k.sep,
                                 v.as_string(),
-                                v.meta().comment(),
+                                v.meta().comment_ws,
+                                v.meta().comment,
                                 v.meta().trail)
                     }
                 }
@@ -81,7 +85,7 @@ impl Container {
         s
     }
 
-    pub fn iter(&self) -> ContainerIterator {
+    pub fn iter(&'a self) -> ContainerIterator<'a> {
         ContainerIterator {
             container: self,
             current: 0,
@@ -97,15 +101,15 @@ impl Container {
 }
 
 pub struct ContainerIterator<'a> {
-    container: &'a Container,
+    container: &'a Container<'a>,
     current: usize,
 }
 
 impl<'a> Iterator for ContainerIterator<'a> {
-    type Item = &'a Item;
+    type Item = &'a Item<'a>;
 
     // @cleanup: "There must be a better way"
-    fn next(&mut self) -> Option<&'a Item> {
+    fn next(&mut self) -> Option<&'a Item<'a>> {
         loop {
             if self.current == self.container.body.len() {
                 return None;
@@ -123,14 +127,14 @@ impl<'a> Iterator for ContainerIterator<'a> {
 }
 
 pub struct ContainerIteratorExhaustive<'a> {
-    container: &'a Container,
+    container: &'a Container<'a>,
     current: usize,
 }
 
 impl<'a> Iterator for ContainerIteratorExhaustive<'a> {
-    type Item = &'a Item;
+    type Item = &'a Item<'a>;
 
-    fn next(&mut self) -> Option<&'a Item> {
+    fn next(&mut self) -> Option<&'a Item<'a>> {
         if self.current != self.container.body.len() {
             let r = &self.container.body[self.current];
             self.current += 1;

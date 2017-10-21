@@ -7,70 +7,72 @@ use container::Container;
 
 use chrono::DateTime as ChronoDateTime;
 
-use std::str::FromStr;
-use std::cmp::max;
+use std::str::{FromStr, CharIndices};
 
 #[derive(Debug)]
-pub struct Parser {
-    src: Vec<char>,
+pub struct Parser<'a> {
+    /// Input to parse.
+    src: &'a str,
+    /// Iterator used for getting characters from `src`.
+    chars: CharIndices<'a>,
+    /// Current byte offset into `src`.
     idx: usize,
+    current: char,
     marker: usize,
-    end: usize,
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// Create a new parser from a string.
-    pub fn new(input: &str) -> Parser {
-        let src = input.chars().collect::<Vec<char>>();
-        let end = max(0, src.len() as isize - 1) as usize;
-        Parser {
-            src: src,
+    pub fn new(input: &'a str) -> Parser<'a> {
+        let mut p = Parser {
+            src: input,
+            chars: input.char_indices(),
             idx: 0,
             marker: 0,
-            end: end,
-        }
+            current: '\0',
+        };
+        p.inc();
+        p
     }
 
     /// Extract the value between marker and index.
-    fn extract(&self) -> String {
-        let end = if !self.end() {
-            self.idx
+    fn extract(&mut self) -> &'a str {
+        if self.end() {
+            &self.src[self.marker..]
         } else {
-            self.idx + 1
-        };
-        self.src[self.marker..end].iter().cloned().collect::<String>()
+            &self.src[self.marker..self.idx]
+        }
     }
 
-    fn extract_exact(&mut self) -> String {
-        self.src[self.marker..self.idx].iter().cloned().collect::<String>()
+    // XXX ???
+    fn extract_exact(&mut self) -> &'a str {
+        &self.src[self.marker..self.idx]
     }
 
-    fn extract_inclusive(&mut self) -> String {
-        self.src[self.marker..self.idx + 1].iter().cloned().collect::<String>()
-    }
-
+    // XXX TODO ???  Change to Option?
     /// Increments the parser if the end of the input has not been reached
     fn inc(&mut self) -> bool {
-        if self.idx != self.end {
-            self.idx += 1;
-            true
-        } else {
-            false
+        match self.chars.next() {
+            Some((i, ch)) => {
+                self.idx = i;
+                self.current = ch;
+                true
+            }
+            None => {
+                self.idx = self.src.len();
+                self.current = '\0';
+                false
+            }
         }
     }
 
     fn end(&self) -> bool {
-        self.idx >= self.end
+        self.idx >= self.src.len()
     }
 
     /// Sets the marker to the index's current position
     fn mark(&mut self) {
         self.marker = self.idx;
-    }
-
-    /// Returns the character currently pointed to by `self.idx`.
-    fn current(&self) -> char {
-        self.src[self.idx]
     }
 
     /// Create error at the current position.
@@ -82,143 +84,99 @@ impl Parser {
 
     /// Parses the input into a TOMLDocument
     /// @cleanup: conflicts with parse_item wrt table parsing
-    pub fn parse(&mut self) -> Result<TOMLDocument> {
+    pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = Container::new();
 
         // Take all keyvals outside of tables/AoT's
-        while self.idx != self.end {
+        while !self.end() {
             // Break out when a table is found
-            if self.current() == '[' {
+            if self.current == '[' {
                 break;
             }
             // Take and wrap one KV pair
-            let kv = self.parse_item()?;
-            let _ = body.append(kv.0, kv.1).chain_err(|| self.parse_error())?;
+            if let Some((key, value)) = self.parse_item()? {
+                body.append(key, value).chain_err(|| self.parse_error())?;
+                self.mark();
+            } else {
+                break;
+            }
         }
 
         // Switch to parsing tables/arrays of tables
-        while self.idx != self.end {
-            let (k, v) = self.dispatch_table()?;
+        while !self.end() {
+            let (k, v) = self.parse_table()?;
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
 
         Ok(TOMLDocument(body))
     }
 
-    pub fn dispatch_table(&mut self) -> Result<(Key, Item)> {
-        while self.current().is_spaces() && self.inc() {}
-        match self.current() {
-            '[' if self.src[self.idx + 1] == '[' => self.parse_AoT(),
-            '[' => self.parse_table(),
-            _ => {
-                println!("Current: {}", self.src[self.idx..].iter().collect::<String>());
-                panic!("Should not have entered dispatch_table()");
-            }
-        }
-    }
-
     fn is_child(parent: &str, child: &str) -> bool {
         child != parent && child.starts_with(parent)
     }
 
-    #[allow(non_snake_case)]
-    /// Parses AoTs
-    pub fn parse_AoT(&mut self) -> Result<(Key, Item)> {
-        let mut array = Vec::new();
-        let (key, first) = self.parse_table()?;
-        array.push(first);
-
-        while !self.end() {
-            let rewind = self.idx;
-            let (k, table) = self.parse_table()?;
-            if key.as_string() == k.as_string() {
-                array.push(table);
-            } else {
-                self.idx = rewind;
-                break;
-            }
-        }
-        Ok((key, Item::AoT(array)))
-    }
-
     /// Attempts to parse the next item and returns it, along with its key
     /// if the item is value-like.
-    pub fn parse_item(&mut self) -> Result<(Option<Key>, Item)> {
+    pub fn parse_item(&mut self) -> Result<Option<(Option<Key<'a>>, Item<'a>)>> {
         // Mark start of whitespace
         self.mark();
         loop {
-            match self.current() {
+            match self.current {
                 // Found a newline; Return all whitespace found up to this point.
                 // TODO: merge consecutive WS
                 '\n' => {
-                    self.idx += 1;
-                    return Ok((None, Item::WS(self.extract())));
+                    self.inc(); // TODO eof
+                    return Ok(Some((None, Item::WS(self.extract()))));
                 }
-                // EOF ws
-                ' ' | '\t' if self.end() => {
-                    return Ok((None, Item::WS(self.extract())));
-                }
-                // Non line-ending ws, skip.
-                ' ' | '\t' | '\r' => self.idx += 1,
+                // Skip whitespace.
+                ' ' | '\t' | '\r' => {
+                    if !self.inc() {
+                        return Ok(Some((None, Item::WS(self.extract()))));
+                    }
+                },
                 // Found a comment, parse it
                 '#' => {
-                    self.idx = self.marker;
-                    let (c, trail) = self.parse_comment_trail();
-                    let mut c = c.expect("There really should be a comment here - parse_item()");
-                    c.comment += &trail;
-                    return Ok((None, Item::Comment(c)));
+                    let indent = self.extract();
+                    let (cws, comment, trail) = self.parse_comment_trail();
+                    return Ok(Some((None, Item::Comment(LineMeta {
+                        indent: indent,
+                        comment_ws: cws,
+                        comment: comment,
+                        trail: trail,
+                    }))));
                 }
-                '[' => {
-                    let r = self.dispatch_table()?;
-                    return Ok((r.0.into(), r.1));
-                }
+                '[' => return Ok(None),
                 _ => {
                     // Return to beginning of whitespace so it gets included
                     // as indentation into the value about to be parsed
                     self.idx = self.marker;
-                    return self.parse_key_value(true);
+                    let (key, value) = self.parse_key_value(true)?;
+                    return Ok(Some((key, value)));
                 }
             }
         }
     }
 
-    /// Attempts to parse a comment at the current position, and returns it along with
-    /// the newline character. Only call this function if the presence of the pound sign
-    /// is guaranteed.
-    fn parse_comment(&mut self) -> Comment {
-        // Find this comment's indentation w.r.t. the last non-ws character.
-        self.mark();
-        while self.current() != '#' && self.inc() {}
-
-        let indent = self.extract();
-        // Skip #
-        self.idx += 1;
-        self.mark();
-
-        // The comment itself
-        while !self.end() && !self.current().is_nl() && self.inc() {}
-
-        let comment = self.extract();
-        Comment {
-            indent: indent,
-            comment: comment,
-        }
-    }
-
-    pub fn parse_comment_trail(&mut self) -> (Option<Comment>, String) {
-        let mut comment = None;
-        let mut trail = "".to_string();
-
+    /// XXX
+    /// Returns `(comment_ws, comment, trail)`
+    pub fn parse_comment_trail(&mut self) -> (&'a str, &'a str, &'a str) {
+        let mut comment = "";
+        let mut comment_ws = "";
         if self.end() {
-            return (comment, trail);
+            return ("", "", "");
         }
         self.mark();
         loop {
-            match self.current() {
+            match self.current {
                 '\n' => break,
                 '#' => {
-                    self.idx = self.marker;
-                    comment = Some(self.parse_comment()); // Ends on first NL or last char if EOF
+                    comment_ws = self.extract();
+                    self.mark();
+                    self.inc();  // Skip #
+
+                    // The comment itself
+                    while !self.end() && !self.current.is_nl() && self.inc() {}
+                    comment = self.extract();
                     self.mark();
                     break;
                 }
@@ -231,39 +189,41 @@ impl Parser {
                 break;
             }
         }
-        while self.current().is_spaces() && self.inc() {}
-        if self.current() == '\r' {
+        while self.current.is_spaces() && self.inc() {}
+        if self.current == '\r' {
             self.inc();
         }
-        if self.current() == '\n' {
+        if self.current == '\n' {
             self.inc();
         }
 
-        trail = if self.idx != self.marker || self.current().is_ws() {
+        let trail = if self.idx != self.marker || self.current.is_ws() {
             self.extract()
         } else {
-            "".to_string()
+            ""
         };
-        (comment, trail)
+        (comment_ws, comment, trail)
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Option<Key>, Item)> {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Option<Key<'a>>, Item<'a>)> {
         self.mark();
-        while self.current().is_spaces() && self.inc() {}
+        while self.current.is_spaces() && self.inc() {}
         let indent = self.extract();
 
         let mut key = self.parse_key();
         self.mark();
-        while self.current().is_kv_sep() && self.inc() {}
+        while self.current.is_kv_sep() && self.inc() {}
         key.sep = self.extract_exact();
 
         let mut val = self.parse_val()?;
 
         if parse_comment {
-            let (comment, trail) = self.parse_comment_trail();
-            val.meta_mut().comment = comment;
-            val.meta_mut().trail = trail;
+            let (cws, comment, trail) = self.parse_comment_trail();
+            let meta = val.meta_mut();
+            meta.comment_ws = cws;
+            meta.comment = comment;
+            meta.trail = trail;
         }
         val.meta_mut().indent = indent;
 
@@ -271,108 +231,17 @@ impl Parser {
     }
 
     /// Attempts to parse a value at the current position.
-    pub fn parse_val(&mut self) -> Result<Item> {
+    pub fn parse_val(&mut self) -> Result<Item<'a>> {
         self.mark();
         let meta: LineMeta = Default::default();
-        match self.current() {
-            // Multi Line Basic String
-            '"' if (self.src[self.idx + 1] == '"' && self.src[self.idx + 2] == '"') => {
-                // skip """
-                self.idx += 3;
-                let mut lstart = self.idx;
-                let mut actual = String::new();
-
-                while self.src[self.idx..self.idx + 3] != ['"', '"', '"'] {
-                    match self.current() {
-                        '/' if self.src[self.idx + 1] == '\r' || self.src[self.idx + 1] == '\n' => {
-                            if lstart != self.idx {
-                                let line =
-                                    self.src[lstart..self.idx].iter().cloned().collect::<String>();
-                                actual.push_str(&line);
-                            }
-                            self.idx += 1;
-                            while self.current().is_ws() {
-                                self.idx += 1;
-                            }
-                            lstart = self.idx;
-                        }
-                        _ => {
-                            self.inc();
-                        }
-                    }
-                }
-                self.inc();
-                self.inc();
-                self.inc();
-                let raw = self.extract();
-
-                Ok(Item::Str {
-                    t: StringType::MLB(raw),
-                    val: actual,
-                    meta: meta,
-                })
-            }
-            // Single Line Basic String
-            '"' => {
-                // skip '"' and mark
-                self.idx += 1;
-                self.mark();
-
-                // @incomplete: Needs to account for escaped backslashes
-                // Seek end of string
-                while self.current() != '"' && self.inc() {}
-
-                let payload = self.extract_exact();
-                // Clear '"'
-                self.inc();
-
-                Ok(Item::Str {
-                    t: StringType::SLB,
-                    val: payload,
-                    meta: meta,
-                })
-            }
-            // Multi Line literal String
-            '\'' if (self.src[self.idx + 1] == '\'' && self.src[self.idx + 2] == '\'') => {
-                // Skip '''
-                self.idx += 3;
-                self.mark();
-
-                while self.src[self.idx..self.idx + 3] != ['\'', '\'', '\''] {
-                    self.idx += 1;
-                }
-                let payload = self.extract();
-                // Two slashes guaranteed
-                self.idx += 2;
-                self.inc();
-
-                Ok(Item::Str {
-                    t: StringType::MLL,
-                    val: payload,
-                    meta: meta,
-                })
-            }
-            // Single Line literal String
-            '\'' => {
-                // Skip '
-                self.idx += 1;
-                self.mark();
-
-                while self.current() != '\'' {
-                    self.idx += 1;
-                }
-                let payload = self.extract_exact();
-                self.inc();
-
-                Ok(Item::Str {
-                    t: StringType::SLL,
-                    val: payload,
-                    meta: meta,
-                })
-            }
+        match self.current {
+            '"' => self.parse_basic_string(),
+            '\'' => self.parse_literal_string(),
             // Boolean: true
-            't' if self.src[self.idx..self.idx + 4] == ['t', 'r', 'u', 'e'] => {
-                self.idx += 3;
+            't' if &self.src[self.idx..self.idx + 4] == "true" => {
+                self.inc();
+                self.inc();
+                self.inc();
                 self.inc();
 
                 Ok(Item::Bool {
@@ -381,8 +250,11 @@ impl Parser {
                 })
             }
             // Boolean: False
-            'f' if self.src[self.idx..self.idx + 5] == ['f', 'a', 'l', 's', 'e'] => {
-                self.idx += 4;
+            'f' if &self.src[self.idx..self.idx + 5] == "false" => {
+                self.inc();
+                self.inc();
+                self.inc();
+                self.inc();
                 self.inc();
 
                 Ok(Item::Bool {
@@ -395,19 +267,27 @@ impl Parser {
                 let mut elems: Vec<Item> = Vec::new();
                 self.inc();
 
-                while self.current() != ']' {
+                while self.current != ']' {
                     self.mark();
-                    while self.current().is_ws() || self.current() == ',' {
+                    while self.current.is_ws() || self.current == ',' {
                         self.inc();
                     }
                     if self.idx != self.marker {
                         elems.push(Item::WS(self.extract_exact()));
                     }
-                    if self.current() == ']' {
+                    if self.current == ']' {
                         break;
                     }
-                    let next = match self.current() {
-                        '#' => Item::Comment(self.parse_comment()),
+                    let next = match self.current {
+                        '#' => {
+                            let (cws, comment, trail) = self.parse_comment_trail();
+                            Item::Comment(LineMeta {
+                                indent: "",
+                                comment_ws: cws,
+                                comment: comment,
+                                trail: trail,
+                            })
+                        }
                         _ => self.parse_val()?,
                     };
                     elems.push(next);
@@ -428,11 +308,11 @@ impl Parser {
             // Inline Table
             '{' => {
                 let mut elems: Container = Container::new();
-                self.idx += 1;
+                self.inc();
 
-                while self.src[self.idx] != '}' {
-                    while self.src[self.idx].is_ws() || self.current() == ',' {
-                        self.idx += 1;
+                while self.current != '}' {
+                    while self.current.is_ws() || self.current == ',' {
+                        self.inc();
                     }
                     let (key, val) = self.parse_key_value(false)?;
                     let _ = elems.append(key, val)?;
@@ -446,15 +326,14 @@ impl Parser {
             }
             // Integer, Float, or DateTime
             '+' | '-' | '0'...'9' => {
-                while self.current().not_in(" \t\n\r#,]}") && self.inc() {}
+                while self.current.not_in(" \t\n\r#,]}") && self.inc() {}
 
-                // EOF shittiness
-                if !self.current().is_digit(10) {
-                    self.idx -= 1;
-                }
+                // TODO EOF shittiness
+                // if !self.current.is_digit(10) {
+                //     self.idx -= 1;
+                // }
 
-                let raw = self.extract_inclusive();
-                self.inc();
+                let raw = self.extract();
 
                 let clean: String = raw.chars()
                     .filter(|c| *c != '_' && *c != ' ')
@@ -478,7 +357,7 @@ impl Parser {
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
                     return Ok(Item::DateTime {
                         val: res,
-                        raw: clean,
+                        raw: raw,  // XXX this was `clean`, why?
                         meta: meta,
                     });
                 } else {
@@ -489,18 +368,84 @@ impl Parser {
         }
     }
 
+    fn parse_literal_string(&mut self) -> Result<Item<'a>> {
+        self.parse_string('\'')
+    }
+
+    fn parse_basic_string(&mut self) -> Result<Item<'a>> {
+        self.parse_string('"')
+    }
+
+    fn parse_string(&mut self, delim: char) -> Result<Item<'a>> {
+        // TODO: Handle escaping.
+        let mut multiline = false;
+        let mut str_type = if delim == '\'' {
+            StringType::SLL
+        } else {
+            StringType::SLB
+        };
+        // Skip opening delim.
+        self.inc() || bail!(ErrorKind::UnexpectedEof);
+        if self.current == delim {
+            self.inc();
+            if self.current == delim {
+                multiline = true;
+                str_type = if delim == '\'' {
+                    StringType::MLL
+                }  else {
+                    StringType::MLB
+                };
+                self.inc() || bail!(ErrorKind::UnexpectedEof);
+            } else {
+                // Empty string.
+                return Ok(Item::Str {
+                    t: str_type,
+                    val: "",
+                    original: "",
+                    meta: Default::default(),
+                });
+            }
+        }
+        self.mark();
+
+        'outer: loop {
+            if self.current == delim {
+                let val = self.extract_exact();
+                if multiline {
+                    for _ in 0..3 {
+                        if self.current != delim {
+                            // Not a triple quote, leave in result as-is.
+                            continue 'outer;
+                        }
+                        self.inc(); // TODO Handle EOF
+                    }
+                } else {
+                    self.inc();
+                }
+                return Ok(Item::Str {
+                    t: str_type,
+                    val: val,
+                    original: val,
+                    meta: Default::default(),
+                });
+            } else {
+                self.inc() || bail!(ErrorKind::UnexpectedEof);
+            }
+        }
+    }
+
     /// Parses a Key at the current position;
     /// WS before the key must be exhausted first at the callsite.
-    fn parse_key(&mut self) -> Key {
-        let key = match self.current() {
+    fn parse_key(&mut self) -> Key<'a> {
+        let key = match self.current {
             '"' | '\'' => self.parse_quoted_key(),
             _ => self.parse_bare_key(),
         };
         key
     }
 
-    fn parse_quoted_key(&mut self) -> Key {
-        let quote_style = self.current();
+    fn parse_quoted_key(&mut self) -> Key<'a> {
+        let quote_style = self.current;
         let key_type = match quote_style {
             '"' => KeyType::Basic,
             '\'' => KeyType::Literal,
@@ -509,96 +454,98 @@ impl Parser {
         self.inc();
         self.mark();
 
-        while self.current() != quote_style && self.inc() {}
+        while self.current != quote_style && self.inc() {}
         let key = self.extract();
         self.inc();
 
         Key {
             t: key_type,
-            sep: "".to_string(),
+            sep: "",
             key: key,
         }
     }
 
-    fn parse_bare_key(&mut self) -> Key {
+    fn parse_bare_key(&mut self) -> Key<'a> {
         self.mark();
-        while self.current().is_bare_key_char() && self.inc() {}
+        while self.current.is_bare_key_char() && self.inc() {}
         let key = self.extract();
 
         Key {
             t: KeyType::Bare,
-            sep: "".to_string(),
+            sep: "",
             key: key,
         }
     }
 
-    /// Rewinds parser to the beginning of the current line
-    fn rewind(&mut self) {
-        while self.idx != 0 && self.src[self.idx - 1] != '\n' {
-            self.idx -= 1;
-        }
-    }
 
-    pub fn parse_table(&mut self) -> Result<(Key, Item)> {
-        // Indentation
-        self.rewind();
-        self.mark();
-        while self.current().is_ws() && self.inc() {}
+    /// Begin parsing a table.
+    ///
+    /// The marker should be positioned at the beginning of the line.
+    /// Current should be pointing at the opening bracket.
+    pub fn parse_table(&mut self) -> Result<(Key<'a>, Item<'a>)> {
         let indent = self.extract();
-        // -------------------------
+        self.inc();  // Skip opening bracket.
 
         // Aot?
-        self.inc();
-        let is_array = if self.current() == '[' {
-            self.inc();
+        let is_array = if self.current == '[' {
+            self.inc() || bail!(ErrorKind::UnexpectedEof);
             true
         } else {
             false
         };
-        debug_assert_ne!(self.current(), '[');
         // -----------------------
 
         // Key
         self.mark();
-        while self.current() != ']' && self.inc() {}
+        // TODO, handle EOF.
+        while self.current != ']' && self.inc() {}
 
+        // TODO: Key parsing and validation.
         let name = self.extract_exact();
         let key = Key {
             t: KeyType::Bare,
-            sep: "".to_string(),
-            key: name.to_string(),
+            sep: "",
+            key: name,
         };
-        self.inc();
+        self.inc();  // Skip closing bracket.
         if is_array {
+            // TODO: Verify close bracket.
             self.inc();
         }
         // --------------------------
 
-        let (comment, trail) = self.parse_comment_trail();
+        let (cws, comment, trail) = self.parse_comment_trail();
 
         let mut values = Container::new();
         // @todo: cache parsed tables instead of rewinding.
         // Maybe cache in a map by start index?
-        while !self.end() {
-            let rewind = self.idx;
-            let (key, item) = self.parse_item()?;
 
-            if item.is_real_table() && !Parser::is_child(&name, &key.as_ref().unwrap().as_string()) {
-                self.idx = rewind;
+        // TODO: Handle child tables.
+        while !self.end() {
+            if let Some((key, item)) = self.parse_item()? {
+                values.append(key, item)?;
+            } else {
+                // End of file or a new table beginning.
                 break;
             }
-            let _ = values.append(key, item)?;
         }
 
-        Ok((key,
-         Item::Table {
+        let mut table = Item::Table {
             is_array: is_array,
             val: values,
             meta: LineMeta {
                 indent: indent,
+                comment_ws: cws,
                 comment: comment,
                 trail: trail,
-            },
-        }))
+            }
+        };
+        if is_array {
+            // TODO: Fetch if exists, and append.
+            let mut array = Vec::new();
+            array.push(table);
+            table = Item::AoT(array);
+        }
+        Ok((key,table))
     }
 }

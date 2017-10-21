@@ -2,53 +2,56 @@ use std::ops::Index;
 use tomldoc::TOMLDocument;
 use items::*;
 
-impl Index<&'static str> for TOMLDocument {
-    type Output = Item;
+impl<'a> Index<&'static str> for TOMLDocument<'a> {
+    type Output = Item<'a>;
 
     fn index(&self, name: &str) -> &Self::Output {
         let k = Key {
             t: KeyType::Bare,
-            sep: "".to_string(),
-            key: name.to_string(),
+            sep: "",
+            key: name,
         };
         let idx = self.0.map.get(&k).expect("Invalid key");
         &self.0.body[*idx].1
     }
 }
 
-impl Index<usize> for TOMLDocument {
-    type Output = Item;
+impl<'a> Index<usize> for TOMLDocument<'a> {
+    type Output = Item<'a>;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        self.0.iter().nth(idx).expect("Indexing TOMLDoc failed")
+        // XXX TODO
+        &self.0.body[idx].1
+        // self.0.iter().nth(idx).expect("Indexing TOMLDoc failed")
     }
 }
 
-impl Index<usize> for Item {
-    type Output = Item;
+impl<'a> Index<usize> for Item<'a> {
+    type Output = Item<'a>;
 
     fn index(&self, idx: usize) -> &Self::Output {
         use self::Item::*;
         match *self {
             Array { ref val, .. } => &val[idx],
-            Table { ref val, .. } => &val.iter().nth(idx).expect("Indexing Table failed"),
-            InlineTable { ref val, .. } => {
-                &val.iter().nth(idx).expect("Indexing InlineTable failed")
-            }
-            AoT(ref vec) => &vec.iter().nth(idx).expect("Indexing AoT failed"),
+            // XXX TODO
+            // Table { ref val, .. } => &val.iter().nth(idx).expect("Indexing Table failed"),
+            // InlineTable { ref val, .. } => {
+            //     &val.iter().nth(idx).expect("Indexing InlineTable failed")
+            // }
+            // AoT(ref vec) => &vec.iter().nth(idx).expect("Indexing AoT failed"),
             _ => panic!(),
         }
     }
 }
 
-impl Index<&'static str> for Item {
-    type Output = Item;
+impl<'a> Index<&'static str> for Item<'a> {
+    type Output = Item<'a>;
 
     fn index(&self, name: &str) -> &Self::Output {
         let k = Key {
             t: KeyType::Bare,
-            sep: "".to_string(),
-            key: name.to_string(),
+            sep: "",
+            key: name,
         };
 
         use self::Item::*;
