@@ -30,9 +30,9 @@ use test_case_derive::test_case;
 #[test_case("tests/reproduction/quoted_keys.toml" :: "Quoted Keys")]
 #[test_case("tests/reproduction/kv_sep.toml" :: "Kv Separators")]
 /// This tests the parser's correctness by parsing each of the
-/// above files and attempting to reproduce them from scratch.
+/// above files and attempting to reproduce them from the parsed structure.
 /// Any difference between original and reproduction is a bug.
-fn parser<P: AsRef<Path> + Display>(path: P) {
+fn reproduce<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
     let mut f = File::open(&path)

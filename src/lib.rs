@@ -8,10 +8,13 @@ extern crate chrono;
 extern crate error_chain;
 
 mod tomlchar;
-mod tomldoc;
+pub mod tomldoc;
 pub mod parser;
 mod api;
 mod index;
 mod items;
-mod container;
+pub mod container;
 mod errors;
+
+pub use tomldoc::TOMLDocument;
+pub use container::Container;

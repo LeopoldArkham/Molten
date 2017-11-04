@@ -1,0 +1,7 @@
+bool = true
+string = "Hello!"
+int = 42
+
+# Comment
+
+array = [1, 2, 3]
