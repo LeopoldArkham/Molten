@@ -12,9 +12,10 @@ pub mod tomldoc;
 pub mod parser;
 mod api;
 mod index;
-mod items;
+pub mod items;
 pub mod container;
 mod errors;
 
 pub use tomldoc::TOMLDocument;
 pub use container::Container;
+pub use items::*;

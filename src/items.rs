@@ -22,6 +22,17 @@ pub struct LineMeta<'a> {
     pub trail: &'a str,
 }
 
+impl<'a> LineMeta<'a> {
+    pub fn empty() -> LineMeta<'a> {
+        LineMeta {
+            indent: "",
+            comment_ws: "",
+            comment: "",
+            trail: "\r\n"
+        }
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {
     Bare,
@@ -34,6 +45,16 @@ pub struct Key<'a> {
     pub t: KeyType,
     pub sep: &'a str,
     pub key: &'a str,
+}
+
+impl<'a> Key<'a> {
+    pub fn new(k: &'a str) -> Key<'a> {
+        Key {
+            t: KeyType::Bare,
+            sep: " = ",
+            key: k,
+        }
+    }
 }
 
 impl<'a> Eq for Key<'a> {}
