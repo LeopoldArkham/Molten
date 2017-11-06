@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use items::*;
 use errors::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Container<'a> {
     pub(crate) map: HashMap<Key<'a>, usize>,
     pub(crate) body: Vec<(Option<Key<'a>>, Item<'a>)>,

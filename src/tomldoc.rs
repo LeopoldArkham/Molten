@@ -1,6 +1,6 @@
 use container::Container;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TOMLDocument<'a>(pub Container<'a>);
 
 impl<'a> TOMLDocument<'a> {

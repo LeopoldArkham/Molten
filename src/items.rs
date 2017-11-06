@@ -2,7 +2,7 @@
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 use container::Container;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum StringType {
     SLB,
     MLB,
@@ -10,7 +10,7 @@ pub enum StringType {
     MLL,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct LineMeta<'a> {
     /// Whitespace before a value.
     pub indent: &'a str,
@@ -83,7 +83,7 @@ impl<'a> Key<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item<'a> {
     // @todo: Move comment struct content here. Also display logic
     WS(&'a str),
