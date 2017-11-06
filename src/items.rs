@@ -28,7 +28,7 @@ impl<'a> LineMeta<'a> {
             indent: "",
             comment_ws: "",
             comment: "",
-            trail: "\r\n"
+            trail: "\n"
         }
     }
 }
@@ -248,6 +248,14 @@ impl<'a> Item<'a> {
             Table { ref mut meta, .. } |
             InlineTable { ref mut meta, .. } |
             Str { ref mut meta, .. } => meta,
+        }
+    }
+
+    pub fn integer(raw: &'a str) -> Item<'a> {
+        Item::Integer {
+            val: raw.parse::<i64>().unwrap(),
+            meta: LineMeta::empty(),
+            raw: raw
         }
     }
 }
