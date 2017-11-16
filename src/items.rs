@@ -29,7 +29,7 @@ impl<'a> LineMeta<'a> {
             indent: "",
             comment_ws: "",
             comment: "",
-            trail: "\r\n",
+            trail: ::NL,
         }
     }
 }
