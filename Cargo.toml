@@ -2,6 +2,20 @@
 name = "Molten"
 version = "0.1.0"
 authors = ["LeopoldArkham <leopold.arkham@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/LeopoldArkham/Molten"
+homepage = "https://github.com/LeopoldArkham/Molten"
+description = """
+Molten is a lossless TOML parser that preserves all comments, indentations, 
+whitespace and internal element ordering, and makes all of these fully 
+editable via an easy API. It is written with the intent of replacing the 
+current TOML parser used in cargo-edit, and, eventually, adding that
+functionality to Cargo itself.
+"""
+categories = ["config", "encoding", "parser-implementations"]
+
+[badges]
+travis-ci = { repository = "LeopoldArkham/Molten" }
 
 [dependencies]
 chrono = "0.3.0"
