@@ -3,3 +3,5 @@ Cargo.lock
 *.rs.bk
 tests/res.toml
 \.vscode/
+
+*.txt

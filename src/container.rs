@@ -55,26 +55,30 @@ impl<'a> Container<'a> {
                         let mut buf = String::new();
                         let key = k.unwrap().as_string();
                         for table in vec {
-                            buf.push_str(&format!("{}[[{}]]{}{}{}",
-                                                  table.meta().indent,
-                                                  key,
-                                                  table.meta().comment_ws,
-                                                  table.meta().comment,
-                                                  table.meta().trail));
+                            buf.push_str(&format!(
+                                "{}[[{}]]{}{}{}",
+                                table.meta().indent,
+                                key,
+                                table.meta().comment_ws,
+                                table.meta().comment,
+                                table.meta().trail
+                            ));
                             buf.push_str(&table.as_string());
                         }
                         buf
                     }
                     _ => {
                         let k = k.unwrap();
-                        format!("{}{}{}{}{}{}{}",
-                                v.meta().indent,
-                                k.as_string(),
-                                k.sep,
-                                v.as_string(),
-                                v.meta().comment_ws,
-                                v.meta().comment,
-                                v.meta().trail)
+                        format!(
+                            "{}{}{}{}{}{}{}",
+                            v.meta().indent,
+                            k.as_string(),
+                            k.sep,
+                            v.as_string(),
+                            v.meta().comment_ws,
+                            v.meta().comment,
+                            v.meta().trail
+                        )
                     }
                 }
             } else {

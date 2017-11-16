@@ -45,7 +45,12 @@ fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
     };
 
     assert_eq!(reference, under_test.as_string());
-    assert_eq!(parsed, under_test);
+    // assert_eq!(parsed, under_test);
+    let mut original = File::create("parsed.txt").unwrap();
+    let mut reconstructed = File::create("reconstructed.txt").unwrap();
+
+    let _ = original.write(format!("{:#?}", parsed).as_bytes()).unwrap();
+    let _ = reconstructed.write(format!("{:#?}", under_test).as_bytes()).unwrap();
 }
 
 fn empty() -> TOMLDocument<'static> {

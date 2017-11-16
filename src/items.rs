@@ -28,7 +28,7 @@ impl<'a> LineMeta<'a> {
             indent: "",
             comment_ws: "",
             comment: "",
-            trail: "\n"
+            trail: "\n",
         }
     }
 }
@@ -87,7 +87,7 @@ impl<'a> Key<'a> {
 pub enum Item<'a> {
     // @todo: Move comment struct content here. Also display logic
     WS(&'a str),
-    Comment (LineMeta<'a>),
+    Comment(LineMeta<'a>),
     Integer {
         val: i64,
         meta: LineMeta<'a>,
@@ -104,13 +104,19 @@ pub enum Item<'a> {
         raw: &'a str,
         meta: LineMeta<'a>,
     },
-    Array { val: Vec<Item<'a>>, meta: LineMeta<'a> },
+    Array {
+        val: Vec<Item<'a>>,
+        meta: LineMeta<'a>,
+    },
     Table {
         is_array: bool,
         val: Container<'a>,
         meta: LineMeta<'a>,
     },
-    InlineTable { val: Container<'a>, meta: LineMeta<'a> },
+    InlineTable {
+        val: Container<'a>,
+        meta: LineMeta<'a>,
+    },
     Str {
         t: StringType,
         val: &'a str, // TODO, make Cow
@@ -125,7 +131,7 @@ impl<'a> Item<'a> {
         use self::Item::*;
         match *self {
             WS(_) => 0,
-            Comment (_) => 1,
+            Comment(_) => 1,
             Integer { .. } => 2,
             Float { .. } => 3,
             Bool { .. } => 4,
@@ -138,17 +144,23 @@ impl<'a> Item<'a> {
         }
     }
 
+    pub(crate) fn is_AoT_table(&self) -> bool {
+        match *self {
+            Item::Table { is_array, .. } if is_array => true,
+            Item::Table { .. } => false,
+            _ => false,
+        }
+    }
+
     pub(crate) fn is_homogeneous(&self) -> bool {
         use std::collections::HashSet;
         match *self {
             Item::Array { ref val, .. } => {
                 let t = val.iter()
-                    .filter_map(|it| {
-                        match it {
-                            &Item::WS(_) |
-                            &Item::Comment(_) => None,
-                            _ => Some(it.discriminant()),
-                        }
+                    .filter_map(|it| match it {
+                        &Item::WS(_) |
+                        &Item::Comment(_) => None,
+                        _ => Some(it.discriminant()),
                     })
                     .collect::<HashSet<_>>()
                     .len();
@@ -163,9 +175,7 @@ impl<'a> Item<'a> {
         use self::Item::*;
         match *self {
             WS(s) => s.into(),
-            Comment(ref meta) => {
-                format!("{}{}{}", meta.indent, meta.comment, meta.trail)
-            }
+            Comment(ref meta) => format!("{}{}{}", meta.indent, meta.comment, meta.trail),
             Integer { ref raw, .. } => format!("{}", raw),
             Float { ref raw, .. } => format!("{}", raw),
             Bool { val, .. } => format!("{}", val),
@@ -184,12 +194,14 @@ impl<'a> Item<'a> {
                 let mut buf = String::new();
                 buf.push_str("{");
                 for (i, &(ref k, ref v)) in val.body.iter().enumerate() {
-                    buf.push_str(&format!("{}{} = {}{}{}",
-                                          v.meta().indent,
-                                          k.clone().unwrap().as_string(),
-                                          v.as_string(),
-                                          v.meta().comment,
-                                          v.meta().trail));
+                    buf.push_str(&format!(
+                        "{}{} = {}{}{}",
+                        v.meta().indent,
+                        k.clone().unwrap().as_string(),
+                        v.as_string(),
+                        v.meta().comment,
+                        v.meta().trail
+                    ));
                     if i != val.body.len() - 1 {
                         buf.push_str(", ");
                     }
@@ -197,7 +209,11 @@ impl<'a> Item<'a> {
                 buf.push_str("}");
                 buf
             }
-            Str { ref t, ref val, ref original, .. } => {
+            Str {
+                ref t,
+                ref original,
+                ..
+            } => {
                 match *t {
                     StringType::MLB => format!(r#""""{}""""#, original),
                     StringType::SLB => format!(r#""{}""#, original),
@@ -255,7 +271,7 @@ impl<'a> Item<'a> {
         Item::Integer {
             val: raw.parse::<i64>().unwrap(),
             meta: LineMeta::empty(),
-            raw: raw
+            raw: raw,
         }
     }
 }

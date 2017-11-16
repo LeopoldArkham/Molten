@@ -1,85 +1,271 @@
-
-    Hello = "world"
-    value = 5
-array = [true, true, false] # Array
-bool = true
-# Full line comment
-a_date = 1979-05-27T00:32:00.999999-07:00
-single = "Fluctat nec mergitur"
-multi = """/
-           Lorem ipsum /    
-           dolor sit /
-           amet./
-           """# Comment from hell
-singleL = 'Vulnerant omnes, ultima necat'
-multiL = '''
-    Sic
-    Semper
-    Tyrannis
-    '''
-
-neg = -59
-inline = {a = true, b = true, c = false}
-
-[table]
-    broken_array = [1, 2, 3, 4]
-        hello = "world"
-    this = "works"
-    does = "this?"
-    # lone comment here?
-    it_does = true#WOW
-
-    long = "shot"
-
-    [table.nested]      #Nesting works
-    value = 1
-    other_value = 2
-
-    [table.nested.twice]
-    test = "Hi"
-
-    [second.table]#Table comment
-true = false
-list = ["Er", "mah", "Gahd!"]
-# Finish Him!
-inline = {a = true, b = true, c = false}
-
-[[parsethis]]
-a = 1
-b = 2
-[[parsethis.sub]]
-flag = true
-[[parsethis.sub]]
-flag = false
-
-[[parsethis]]
-b = 1
-c = 3
-
-[[parsethis]]
-a = 4
-inline = {a = true, b = true, c = false}
-
-[[other_AoT]]
-flag = true
-
-[[other_AoT]]
-flag = false
-[[other_AoT]]
-flag = false
-
-[tableattheend]
-inline = {a = true, b = true, c = false} # test
-val = -1
-flag = true
-name_1 = "Patapouf"
-name_2 = 'Poupouf'
-name_3 = """Patapouf"""
-name_4 = '''Poupouf'''
-sdf = """ hi"""
-array = ["test", "test", "test"]
-a_date = 1979-05-27T00:32:00.999999-07:00
-
-[empty_table]
-      
-# a comment
+TOMLDocument(
+    Container {
+        map: {
+            root.nested: 3,
+            root: 4
+        },
+        body: [
+            (
+                Some(
+                    root
+                ),
+                AoT(
+                    [
+                        Table {
+                            is_array: true,
+                            val: Container {
+                                map: {
+                                    root_val: 0
+                                },
+                                body: [
+                                    (
+                                        Some(
+                                            root_val
+                                        ),
+                                        Integer {
+                                            val: 1,
+                                            meta: LineMeta {
+                                                indent: "",
+                                                comment_ws: "",
+                                                comment: "",
+                                                trail: "\n"
+                                            },
+                                            raw: "1"
+                                        }
+                                    ),
+                                    (
+                                        None,
+                                        WS(
+                                            "\n"
+                                        )
+                                    )
+                                ]
+                            },
+                            meta: LineMeta {
+                                indent: "",
+                                comment_ws: "",
+                                comment: "",
+                                trail: "\n"
+                            }
+                        }
+                    ]
+                )
+            ),
+            (
+                Some(
+                    root
+                ),
+                AoT(
+                    [
+                        Table {
+                            is_array: true,
+                            val: Container {
+                                map: {
+                                    root_val: 0
+                                },
+                                body: [
+                                    (
+                                        Some(
+                                            root_val
+                                        ),
+                                        Integer {
+                                            val: 2,
+                                            meta: LineMeta {
+                                                indent: "",
+                                                comment_ws: "",
+                                                comment: "",
+                                                trail: "\n"
+                                            },
+                                            raw: "2"
+                                        }
+                                    ),
+                                    (
+                                        None,
+                                        WS(
+                                            "\n"
+                                        )
+                                    )
+                                ]
+                            },
+                            meta: LineMeta {
+                                indent: "",
+                                comment_ws: "",
+                                comment: "",
+                                trail: "\n"
+                            }
+                        }
+                    ]
+                )
+            ),
+            (
+                Some(
+                    root
+                ),
+                AoT(
+                    [
+                        Table {
+                            is_array: true,
+                            val: Container {
+                                map: {
+                                    root_val: 0,
+                                    root.nested: 1
+                                },
+                                body: [
+                                    (
+                                        Some(
+                                            root_val
+                                        ),
+                                        Integer {
+                                            val: 3,
+                                            meta: LineMeta {
+                                                indent: "",
+                                                comment_ws: "",
+                                                comment: "",
+                                                trail: "\n"
+                                            },
+                                            raw: "3"
+                                        }
+                                    ),
+                                    (
+                                        Some(
+                                            root.nested
+                                        ),
+                                        AoT(
+                                            [
+                                                Table {
+                                                    is_array: true,
+                                                    val: Container {
+                                                        map: {
+                                                            nested_val: 0
+                                                        },
+                                                        body: [
+                                                            (
+                                                                Some(
+                                                                    nested_val
+                                                                ),
+                                                                Str {
+                                                                    t: SLB,
+                                                                    val: "3.1",
+                                                                    original: "3.1",
+                                                                    meta: LineMeta {
+                                                                        indent: "",
+                                                                        comment_ws: "",
+                                                                        comment: "",
+                                                                        trail: "\n"
+                                                                    }
+                                                                }
+                                                            )
+                                                        ]
+                                                    },
+                                                    meta: LineMeta {
+                                                        indent: "",
+                                                        comment_ws: "",
+                                                        comment: "",
+                                                        trail: "\n"
+                                                    }
+                                                }
+                                            ]
+                                        )
+                                    )
+                                ]
+                            },
+                            meta: LineMeta {
+                                indent: "",
+                                comment_ws: "",
+                                comment: "",
+                                trail: "\n"
+                            }
+                        }
+                    ]
+                )
+            ),
+            (
+                Some(
+                    root.nested
+                ),
+                AoT(
+                    [
+                        Table {
+                            is_array: true,
+                            val: Container {
+                                map: {
+                                    nested_val: 0
+                                },
+                                body: [
+                                    (
+                                        Some(
+                                            nested_val
+                                        ),
+                                        Str {
+                                            t: SLB,
+                                            val: "3.2",
+                                            original: "3.2",
+                                            meta: LineMeta {
+                                                indent: "",
+                                                comment_ws: "",
+                                                comment: "",
+                                                trail: "\n"
+                                            }
+                                        }
+                                    ),
+                                    (
+                                        None,
+                                        WS(
+                                            "\n"
+                                        )
+                                    )
+                                ]
+                            },
+                            meta: LineMeta {
+                                indent: "",
+                                comment_ws: "",
+                                comment: "",
+                                trail: "\n"
+                            }
+                        }
+                    ]
+                )
+            ),
+            (
+                Some(
+                    root
+                ),
+                AoT(
+                    [
+                        Table {
+                            is_array: true,
+                            val: Container {
+                                map: {
+                                    root_val: 0
+                                },
+                                body: [
+                                    (
+                                        Some(
+                                            root_val
+                                        ),
+                                        Integer {
+                                            val: 4,
+                                            meta: LineMeta {
+                                                indent: "",
+                                                comment_ws: "",
+                                                comment: "",
+                                                trail: ""
+                                            },
+                                            raw: "4"
+                                        }
+                                    )
+                                ]
+                            },
+                            meta: LineMeta {
+                                indent: "",
+                                comment_ws: "",
+                                comment: "",
+                                trail: "\n"
+                            }
+                        }
+                    ]
+                )
+            )
+        ]
+    }
+)

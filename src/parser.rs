@@ -1,24 +1,30 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
-use api::*;
+// use api::*;
 use errors::*;
 use container::Container;
 
 use chrono::DateTime as ChronoDateTime;
 
 use std::str::{FromStr, CharIndices};
+use std::iter::Peekable;
+
+// Allowing dead code due to https://github.com/rust-lang/rust/issues/18290
+#[allow(non_camel_case_types, dead_code)]
+type isAOT = bool;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// Input to parse.
     src: &'a str,
     /// Iterator used for getting characters from `src`.
-    chars: CharIndices<'a>,
+    chars: Peekable<CharIndices<'a>>,
     /// Current byte offset into `src`.
     idx: usize,
     current: char,
     marker: usize,
+    AoT_stack: Vec<&'a str>,
 }
 
 impl<'a> Parser<'a> {
@@ -26,10 +32,11 @@ impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Parser<'a> {
         let mut p = Parser {
             src: input,
-            chars: input.char_indices(),
+            chars: input.char_indices().peekable(),
             idx: 0,
             marker: 0,
             current: '\0',
+            AoT_stack: Vec::new(),
         };
         p.inc();
         p
@@ -133,17 +140,20 @@ impl<'a> Parser<'a> {
                     if !self.inc() {
                         return Ok(Some((None, Item::WS(self.extract()))));
                     }
-                },
+                }
                 // Found a comment, parse it
                 '#' => {
                     let indent = self.extract();
                     let (cws, comment, trail) = self.parse_comment_trail();
-                    return Ok(Some((None, Item::Comment(LineMeta {
-                        indent: indent,
-                        comment_ws: cws,
-                        comment: comment,
-                        trail: trail,
-                    }))));
+                    return Ok(Some((
+                        None,
+                        Item::Comment(LineMeta {
+                            indent: indent,
+                            comment_ws: cws,
+                            comment: comment,
+                            trail: trail,
+                        }),
+                    )));
                 }
                 '[' => return Ok(None),
                 _ => {
@@ -172,7 +182,7 @@ impl<'a> Parser<'a> {
                 '#' => {
                     comment_ws = self.extract();
                     self.mark();
-                    self.inc();  // Skip #
+                    self.inc(); // Skip #
 
                     // The comment itself
                     while !self.end() && !self.current.is_nl() && self.inc() {}
@@ -357,14 +367,14 @@ impl<'a> Parser<'a> {
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
                     return Ok(Item::DateTime {
                         val: res,
-                        raw: raw,  // XXX this was `clean`, why?
+                        raw: raw, // XXX this was `clean`, why?
                         meta: meta,
                     });
                 } else {
                     bail!(ErrorKind::InvalidNumberOrDate);
                 }
             }
-            ch => bail!(ErrorKind::UnexpectedChar(ch))
+            ch => bail!(ErrorKind::UnexpectedChar(ch)),
         }
     }
 
@@ -392,7 +402,7 @@ impl<'a> Parser<'a> {
                 multiline = true;
                 str_type = if delim == '\'' {
                     StringType::MLL
-                }  else {
+                } else {
                     StringType::MLB
                 };
                 self.inc() || bail!(ErrorKind::UnexpectedEof);
@@ -477,23 +487,58 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peeks ahead non-intrusively by cloning then restoring the
+    /// initial state of the parser.
+    /// Returns the name of the table about to be parsed,
+    /// as well as whether it is part of an AoT.
+    fn peek_table(&mut self) -> Result<(isAOT, &'a str)> {
+        // Save initial state
+        let chars = self.chars.clone();
+        let idx = self.idx;
+        let current = self.current;
+        let marker = self.marker;
 
-    /// Begin parsing a table.
-    ///
-    /// The marker should be positioned at the beginning of the line.
-    /// Current should be pointing at the opening bracket.
+        // @fixme: May need changing to allow leading indentation
+        if self.current != '[' {
+            bail!(ErrorKind::InternalParserError(
+                "Peek_table_name entered on non-bracket character".into(),
+            ));
+        }
+
+        // AoT?
+        self.inc();
+        // @cleanup: peek() no longer needed
+        let is_AOT = match self.current {
+            '[' => {
+                println!("AOT");
+                self.inc();
+                true as isAOT
+            }
+            _ => false,
+        };
+
+        self.mark();
+        while self.inc() && self.current != ']' {}
+        let table_name = self.extract();
+
+        // Restore initial state
+        self.chars = chars;
+        self.idx = idx;
+        self.current = current;
+        self.marker = marker;
+
+        Ok((is_AOT, table_name))
+    }
+
     pub fn parse_table(&mut self) -> Result<(Key<'a>, Item<'a>)> {
         let indent = self.extract();
-        self.inc();  // Skip opening bracket.
+        self.inc(); // Skip opening bracket.
 
-        // Aot?
-        let is_array = if self.current == '[' {
-            self.inc() || bail!(ErrorKind::UnexpectedEof);
-            true
+        let is_aot = if self.current == '[' {
+            self.inc() || bail!(ErrorKind::UnexpectedEof)
         } else {
             false
         };
-        // -----------------------
 
         // Key
         self.mark();
@@ -505,10 +550,10 @@ impl<'a> Parser<'a> {
         let key = Key {
             t: KeyType::Bare,
             sep: "",
-            key: name,
+            key: name.clone(),
         };
-        self.inc();  // Skip closing bracket.
-        if is_array {
+        self.inc(); // Skip closing bracket.
+        if is_aot {
             // TODO: Verify close bracket.
             self.inc();
         }
@@ -516,36 +561,83 @@ impl<'a> Parser<'a> {
 
         let (cws, comment, trail) = self.parse_comment_trail();
 
+        // @cleanup: Total hack, add undecided variant
+        let mut result = Item::integer("999");
         let mut values = Container::new();
-        // @todo: cache parsed tables instead of rewinding.
-        // Maybe cache in a map by start index?
-
-        // TODO: Handle child tables.
+        // @cleanup: Wait for table API:
+        // Use table API to add kv's as they come so result is never
+        // uninitialized
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
                 values.append(key, item)?;
             } else {
-                // End of file or a new table beginning.
+                if self.current == '[' {
+                    // @cleanup: use is_aot_next early?
+                    let (_, name_next) = self.peek_table()?;
+
+                    if Parser::is_child(name, name_next) {
+                        println!("Adding {} to {}", name_next, name);
+                        let (key_next, table_next) = self.parse_table()?;
+                        values.append(key_next, table_next)?;
+                    } else {
+                        let table = Item::Table {
+                            is_array: is_aot,
+                            val: values.clone(),
+                            meta: LineMeta {
+                                indent: indent,
+                                comment_ws: cws,
+                                comment: comment,
+                                trail: trail,
+                            },
+                        };
+                        result = if is_aot && (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap()) {
+                            println!("Packing up table and parsing AoT: {}", name);
+                            self.parse_aot(table, name)?
+                        } else {
+                            table
+                        }
+                    }
+                    break;
+                } else {
+                    bail!(ErrorKind::InternalParserError(
+                        "parse_item() returned None on a non-bracket character."
+                            .into(),
+                    ))
+                }
+            }
+        }
+        // @cleanup: undecided variant
+        if result.is_integer() {
+            result = Item::Table {
+                is_array: is_aot,
+                val: values.clone(),
+                meta: LineMeta {
+                    indent: indent,
+                    comment_ws: cws,
+                    comment: comment,
+                    trail: trail,
+                },
+            };
+        }
+        Ok((key, result))
+    }
+
+    fn parse_aot(&mut self, first: Item<'a>, name_first: &'a str) -> Result<Item<'a>> {
+        // We are in an AoT, and next is not a child of first.
+        let mut payload = vec![first];
+        self.AoT_stack.push(name_first);
+        while !self.end() {
+            let (is_aot_next, name_next) = self.peek_table()?;
+            if is_aot_next && name_next == name_first {
+                let (_, table) = self.parse_table()?;
+                println!("Adding a member to: {}", name_first);
+                payload.push(table);
+            } else {
+                println!("{} is not a sibling of {}", name_next, name_first);
                 break;
             }
         }
-
-        let mut table = Item::Table {
-            is_array: is_array,
-            val: values,
-            meta: LineMeta {
-                indent: indent,
-                comment_ws: cws,
-                comment: comment,
-                trail: trail,
-            }
-        };
-        if is_array {
-            // TODO: Fetch if exists, and append.
-            let mut array = Vec::new();
-            array.push(table);
-            table = Item::AoT(array);
-        }
-        Ok((key,table))
+        self.AoT_stack.pop();
+        Ok(Item::AoT(payload))
     }
 }
