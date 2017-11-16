@@ -6,10 +6,10 @@ root_val = 2
 
 [[root]]
 root_val = 3
-    [[root.nested]]
-    nested_val = "3.1"
-    [[root.nested]]
-    nested_val = "3.2"
+[[root.nested]]
+nested_val = "3.1"
+[[root.nested]]
+nested_val = "3.2"
 
 [[root]]
 root_val = 4

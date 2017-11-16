@@ -19,8 +19,3 @@ bool = true
 [[second]]
 [[second]]
 [[second]]
-
-[[last]]
-val = [1, 2, 3]
-[[last]]
-val = [4, 5, 6]
