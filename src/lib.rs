@@ -21,3 +21,6 @@ pub use items::*;
 // Should be private and handled via API
 pub mod container;
 pub use container::Container;
+
+#[cfg(windows)] pub const NL: &'static str = "\r\n";
+#[cfg(not(windows))] pub const NL: &'static str = "\n";
