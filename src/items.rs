@@ -11,7 +11,7 @@ pub enum StringType {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct LineMeta<'a> {
+pub struct Trivia<'a> {
     /// Whitespace before a value.
     pub indent: &'a str,
     /// Whitespace after a value, but before a comment.
@@ -22,10 +22,10 @@ pub struct LineMeta<'a> {
     pub trail: &'a str,
 }
 
-impl<'a> LineMeta<'a> {
-    /// Creates an empty LineMeta with windows-style newline.
-    pub fn empty() -> LineMeta<'a> {
-        LineMeta {
+impl<'a> Trivia<'a> {
+    /// Creates an empty Trivia with windows-style newline.
+    pub fn empty() -> Trivia<'a> {
+        Trivia {
             indent: "",
             comment_ws: "",
             comment: "",
@@ -91,41 +91,41 @@ impl<'a> Key<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item<'a> {
     WS(&'a str),
-    Comment(LineMeta<'a>),
+    Comment(Trivia<'a>),
     Integer {
         val: i64,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
         raw: &'a str,
     },
     Float {
         val: f64,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
         raw: &'a str,
     },
-    Bool { val: bool, meta: LineMeta<'a> },
+    Bool { val: bool, meta: Trivia<'a> },
     DateTime {
         val: ChronoDateTime<FixedOffset>,
         raw: &'a str,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
     },
     Array {
         val: Vec<Item<'a>>,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
     },
     Table {
         is_array: bool,
         val: Container<'a>,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
     },
     InlineTable {
         val: Container<'a>,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
     },
     Str {
         t: StringType,
         val: &'a str, // TODO, make Cow
         original: &'a str,
-        meta: LineMeta<'a>,
+        meta: Trivia<'a>,
     },
     AoT(Vec<Item<'a>>),
 }
@@ -227,7 +227,7 @@ impl<'a> Item<'a> {
         }
     }
 
-    pub fn meta(&self) -> &LineMeta<'a> {
+    pub fn meta(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) => {
@@ -245,7 +245,7 @@ impl<'a> Item<'a> {
         }
     }
 
-    pub fn meta_mut(&mut self) -> &mut LineMeta<'a> {
+    pub fn meta_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) => {
@@ -268,7 +268,7 @@ impl<'a> Item<'a> {
     pub fn integer(raw: &'a str) -> Item<'a> {
         Item::Integer {
             val: raw.parse::<i64>().unwrap(),
-            meta: LineMeta::empty(),
+            meta: Trivia::empty(),
             raw: raw,
         }
     }
