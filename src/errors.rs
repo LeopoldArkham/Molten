@@ -18,5 +18,19 @@ error_chain! {
             description("Unexpected character")
             display("Unexpected character: {}", ch)
         }
+        UnexpectedEof {
+            description("Unepxected end of file")
+        }
+        InvalidCharInString(ch: char) {
+            description("Invalid character in string")
+            display("Invalid character '{}' in string", ch) // XXX escaping
+        }
+        InternalParserError(msg: String) {
+            description("Internal Parser Error")
+            display("{}\n The parser has violated one of its invariants.
+            This is a bug.\n
+            Please open an issue uqoting this message at
+            https://github.com/LeopoldArkham/Molten", msg)
+        }
     }
 }

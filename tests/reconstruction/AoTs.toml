@@ -1,0 +1,21 @@
+[[first]]
+id = 1
+[first.nested]
+nested_id = 12
+
+[[first]]
+id = 2
+
+[[first]]
+id = 3
+[first.nested]
+nested_id = 31
+[[first.nested.nestedagain]]
+bool = true
+
+[[first.nested.nestedagain]]
+bool = true
+
+[[second]]
+[[second]]
+[[second]]
