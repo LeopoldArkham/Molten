@@ -44,10 +44,6 @@ impl<'a> Item<'a> {
         self.discriminant() == 7 || self.discriminant() == 8
     }
 
-    // pub(crate) fn is_real_table(&self) -> bool {
-    //     self.discriminant() == 7 || self.discriminant() == 10
-    // }
-
     pub fn is_inline_table(&self) -> bool {
         self.discriminant() == 8
     }
