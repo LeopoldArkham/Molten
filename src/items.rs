@@ -23,17 +23,21 @@ pub struct LineMeta<'a> {
 }
 
 impl<'a> LineMeta<'a> {
+    /// Creates an empty LineMeta with windows-style newline.
     pub fn empty() -> LineMeta<'a> {
         LineMeta {
             indent: "",
             comment_ws: "",
             comment: "",
-            trail: "\n",
+            trail: "\r\n",
         }
     }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+/// The type of a key.
+/// Keys can be bare or follow the same rules as
+/// either string type.
 pub enum KeyType {
     Bare,
     Basic,
@@ -48,6 +52,7 @@ pub struct Key<'a> {
 }
 
 impl<'a> Key<'a> {
+    /// Creates a new bare key with a standard separator
     pub fn new(k: &'a str) -> Key<'a> {
         Key {
             t: KeyType::Bare,
@@ -85,7 +90,6 @@ impl<'a> Key<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item<'a> {
-    // @todo: Move comment struct content here. Also display logic
     WS(&'a str),
     Comment(LineMeta<'a>),
     Integer {
@@ -141,14 +145,6 @@ impl<'a> Item<'a> {
             InlineTable { .. } => 8,
             Str { .. } => 9,
             AoT(_) => 10,
-        }
-    }
-
-    pub(crate) fn is_AoT_table(&self) -> bool {
-        match *self {
-            Item::Table { is_array, .. } if is_array => true,
-            Item::Table { .. } => false,
-            _ => false,
         }
     }
 
@@ -267,6 +263,8 @@ impl<'a> Item<'a> {
         }
     }
 
+    /// Hack for testing purposes in reconstruction.rs
+    /// Really belongs in the API
     pub fn integer(raw: &'a str) -> Item<'a> {
         Item::Integer {
             val: raw.parse::<i64>().unwrap(),

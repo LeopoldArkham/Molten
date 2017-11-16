@@ -1,14 +1,12 @@
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
-// use api::*;
 use errors::*;
 use container::Container;
 
 use chrono::DateTime as ChronoDateTime;
 
 use std::str::{FromStr, CharIndices};
-use std::iter::Peekable;
 
 // Allowing dead code due to https://github.com/rust-lang/rust/issues/18290
 #[allow(non_camel_case_types, dead_code)]
@@ -19,20 +17,23 @@ pub struct Parser<'a> {
     /// Input to parse.
     src: &'a str,
     /// Iterator used for getting characters from `src`.
-    chars: Peekable<CharIndices<'a>>,
+    chars: CharIndices<'a>,
     /// Current byte offset into `src`.
     idx: usize,
+    /// Current character
     current: char,
+    /// Index into `src` between which and `idx` slices will be extracted
     marker: usize,
+    /// A LIFO stack to keep track of the current AoT.
     AoT_stack: Vec<&'a str>,
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser from a string.
+    /// Create a new parser from a &str.
     pub fn new(input: &'a str) -> Parser<'a> {
         let mut p = Parser {
             src: input,
-            chars: input.char_indices().peekable(),
+            chars: input.char_indices(),
             idx: 0,
             marker: 0,
             current: '\0',
@@ -51,13 +52,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // XXX ???
+    /// Dirty hack that should go away
     fn extract_exact(&mut self) -> &'a str {
         &self.src[self.marker..self.idx]
     }
 
-    // XXX TODO ???  Change to Option?
-    /// Increments the parser if the end of the input has not been reached
+    /// Increments the parser if the end of the input has not been reached.
+    /// Returns whether or not it was able to advance.
     fn inc(&mut self) -> bool {
         match self.chars.next() {
             Some((i, ch)) => {
@@ -73,6 +74,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Returns true if the parser has reached the end of the input.
     fn end(&self) -> bool {
         self.idx >= self.src.len()
     }
@@ -84,23 +86,22 @@ impl<'a> Parser<'a> {
 
     /// Create error at the current position.
     fn parse_error(&self) -> Error {
-        // TODO
+        // @todo: Actually report position of error (#14)
         let (line, col) = (0, 0);
         ErrorKind::ParseError(line, col).into()
     }
 
     /// Parses the input into a TOMLDocument
-    /// @cleanup: conflicts with parse_item wrt table parsing
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = Container::new();
 
-        // Take all keyvals outside of tables/AoT's
+        // Take all keyvals outside of tables/AoT's.
         while !self.end() {
-            // Break out when a table is found
+            // Break out if a table is found.
             if self.current == '[' {
                 break;
             }
-            // Take and wrap one KV pair
+            // Otherwise, take and append one KV.
             if let Some((key, value)) = self.parse_item()? {
                 body.append(key, value).chain_err(|| self.parse_error())?;
                 self.mark();
@@ -109,15 +110,16 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Switch to parsing tables/arrays of tables
+        // Switch to parsing tables/arrays of tables until the end of the input.
         while !self.end() {
             let (k, v) = self.parse_table()?;
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
-
         Ok(TOMLDocument(body))
     }
 
+    /// Returns whether a key is strictly a child of another key.
+    /// AoT siblings are not considered children of one another.
     fn is_child(parent: &str, child: &str) -> bool {
         child != parent && child.starts_with(parent)
     }
@@ -130,7 +132,7 @@ impl<'a> Parser<'a> {
         loop {
             match self.current {
                 // Found a newline; Return all whitespace found up to this point.
-                // TODO: merge consecutive WS
+                // @todo: merge consecutive WS
                 '\n' => {
                     self.inc(); // TODO eof
                     return Ok(Some((None, Item::WS(self.extract()))));
@@ -141,7 +143,7 @@ impl<'a> Parser<'a> {
                         return Ok(Some((None, Item::WS(self.extract()))));
                     }
                 }
-                // Found a comment, parse it
+                // Found a comment, parse it.
                 '#' => {
                     let indent = self.extract();
                     let (cws, comment, trail) = self.parse_comment_trail();
@@ -155,10 +157,12 @@ impl<'a> Parser<'a> {
                         }),
                     )));
                 }
+                // Found a table, delegate to the calling function.
                 '[' => return Ok(None),
+                // Begining of a KV pair.
+                // Return to beginning of whitespace so it gets included
+                // as indentation for the KV about to be parsed.
                 _ => {
-                    // Return to beginning of whitespace so it gets included
-                    // as indentation into the value about to be parsed
                     self.idx = self.marker;
                     let (key, value) = self.parse_key_value(true)?;
                     return Ok(Some((key, value)));
@@ -167,15 +171,18 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// XXX
     /// Returns `(comment_ws, comment, trail)`
+    /// If there is no comment, comment_ws and comment will
+    /// simply be empty.
     pub fn parse_comment_trail(&mut self) -> (&'a str, &'a str, &'a str) {
-        let mut comment = "";
-        let mut comment_ws = "";
         if self.end() {
             return ("", "", "");
         }
+        
+        let mut comment = "";
+        let mut comment_ws = "";
         self.mark();
+        
         loop {
             match self.current {
                 '\n' => break,
@@ -199,7 +206,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        while self.current.is_spaces() && self.inc() {}
+        while self.inc() && self.current.is_spaces() {}
         if self.current == '\r' {
             self.inc();
         }
@@ -217,17 +224,21 @@ impl<'a> Parser<'a> {
 
     /// Parses and returns a key/value pair.
     pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Option<Key<'a>>, Item<'a>)> {
+        // Leading indent.
         self.mark();
         while self.current.is_spaces() && self.inc() {}
         let indent = self.extract();
 
+        // Key.
         let mut key = self.parse_key();
         self.mark();
         while self.current.is_kv_sep() && self.inc() {}
         key.sep = self.extract_exact();
 
+        // Value.
         let mut val = self.parse_val()?;
 
+        // Comment
         if parse_comment {
             let (cws, comment, trail) = self.parse_comment_trail();
             let meta = val.meta_mut();
@@ -454,6 +465,7 @@ impl<'a> Parser<'a> {
         key
     }
 
+    /// Parses a key enclosed in either single or double quotes.
     fn parse_quoted_key(&mut self) -> Key<'a> {
         let quote_style = self.current;
         let key_type = match quote_style {
@@ -475,6 +487,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses a bare key
     fn parse_bare_key(&mut self) -> Key<'a> {
         self.mark();
         while self.current.is_bare_key_char() && self.inc() {}
@@ -507,7 +520,6 @@ impl<'a> Parser<'a> {
 
         // AoT?
         self.inc();
-        // @cleanup: peek() no longer needed
         let is_AOT = match self.current {
             '[' => {
                 println!("AOT");
@@ -572,11 +584,9 @@ impl<'a> Parser<'a> {
                 values.append(key, item)?;
             } else {
                 if self.current == '[' {
-                    // @cleanup: use is_aot_next early?
                     let (_, name_next) = self.peek_table()?;
 
                     if Parser::is_child(name, name_next) {
-                        println!("Adding {} to {}", name_next, name);
                         let (key_next, table_next) = self.parse_table()?;
                         values.append(key_next, table_next)?;
                     } else {
@@ -591,7 +601,6 @@ impl<'a> Parser<'a> {
                             },
                         };
                         result = if is_aot && (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap()) {
-                            println!("Packing up table and parsing AoT: {}", name);
                             self.parse_aot(table, name)?
                         } else {
                             table
@@ -630,10 +639,8 @@ impl<'a> Parser<'a> {
             let (is_aot_next, name_next) = self.peek_table()?;
             if is_aot_next && name_next == name_first {
                 let (_, table) = self.parse_table()?;
-                println!("Adding a member to: {}", name_first);
                 payload.push(table);
             } else {
-                println!("{} is not a sibling of {}", name_next, name_first);
                 break;
             }
         }

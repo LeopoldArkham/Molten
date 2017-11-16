@@ -7,14 +7,17 @@ extern crate chrono;
 extern crate error_chain;
 
 mod tomlchar;
+mod errors;
 pub mod tomldoc;
 pub mod parser;
-mod api;
-mod index;
+pub mod api;
+pub mod index;
 pub mod items;
-pub mod container;
-mod errors;
 
 pub use tomldoc::TOMLDocument;
-pub use container::Container;
 pub use items::*;
+
+// Only public as a hack for testing;
+// Should be private and handled via API
+pub mod container;
+pub use container::Container;

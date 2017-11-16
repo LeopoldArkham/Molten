@@ -14,6 +14,10 @@ use std::fmt::Display;
 
 use test_case_derive::test_case;
 
+// To add a test case:
+// 1) Create reference target toml file in /reproduction.
+// 2) Add a matching test_case attribute to the reproduce() function below.
+
 #[test_case("tests/reproduction/full.toml" :: "Full")]
 #[test_case("tests/reproduction/integers.toml" :: "Integers")]
 #[test_case("tests/reproduction/floats.toml" :: "Floats")]
@@ -43,9 +47,9 @@ fn reproduce<P: AsRef<Path> + Display>(path: P) {
     let res = parser.parse().unwrap();
 
     // Knobs for debugging
-    let mut f = File::create("tests/reproduction/res.txt").unwrap();
+    // let mut f = File::create("tests/reproduction/res.txt").unwrap();
     // println!("{:#?}", res);
-    let _ = f.write(format!("{:#?}", res).as_bytes()).unwrap();
+    // let _ = f.write(format!("{:#?}", res).as_bytes()).unwrap();
 
     assert_eq!(input, res.as_string());
 }

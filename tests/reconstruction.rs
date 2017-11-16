@@ -18,6 +18,14 @@ use test_case_derive::test_case;
 use Molten::{TOMLDocument, Container};
 use Molten::items::*;
 
+// To add a test case:
+// 1) Write a target toml file in /reconstruction
+// 2) Write a function with the same name at the end of this file,
+// which programatically reproduces your target document.
+// 3) Add your function to the hashmap below
+// 4) Add a test_case attribute for your new test to the reconstruct() function.
+
+
 lazy_static! {
     static ref MAP: HashMap<&'static str, fn() -> TOMLDocument<'static>> = {
         let mut m = HashMap::new();
@@ -99,7 +107,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
         let mut nested_container = Container::new();
         let _ = nested_container.append(nested_id_k, nested_id_v);
-        let _ = nested_container.append(None, Item::WS("\n"));
+        let _ = nested_container.append(None, Item::WS("\r\n"));
 
         let nested_k = Key::new("first.nested");
         let nested_v = Item::Table {
@@ -122,7 +130,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let id_k = Key::new("id");
         let id_v = Item::integer("2");
         let _ = _container.append(id_k, id_v);
-        let _ = _container.append(None, Item::WS("\n"));
+        let _ = _container.append(None, Item::WS("\r\n"));
 
         Item::Table {
             is_array: true,
@@ -146,7 +154,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let boolean_v = Item::Bool {val: true, meta: trivia.clone()};
         let mut table_container = Container::new();
         let _ = table_container.append(boolean_k, boolean_v);
-        let _ = table_container.append(None, Item::WS("\n"));
+        let _ = table_container.append(None, Item::WS("\r\n"));
 
 
         let table = Item::Table {
