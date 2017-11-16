@@ -43,9 +43,9 @@ fn reproduce<P: AsRef<Path> + Display>(path: P) {
     let res = parser.parse().unwrap();
 
     // Knobs for debugging
-    // let mut f = File::create("tests/reproduction/res.toml").unwrap();
+    let mut f = File::create("tests/reproduction/res.txt").unwrap();
     // println!("{:#?}", res);
-    // let _ = f.write(res.as_string().as_bytes()).unwrap();
+    let _ = f.write(format!("{:#?}", res).as_bytes()).unwrap();
 
     assert_eq!(input, res.as_string());
 }
