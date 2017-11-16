@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
                     let (cws, comment, trail) = self.parse_comment_trail();
                     return Ok(Some((
                         None,
-                        Item::Comment(LineMeta {
+                        Item::Comment(Trivia {
                             indent: indent,
                             comment_ws: cws,
                             comment: comment,
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
     /// Attempts to parse a value at the current position.
     pub fn parse_val(&mut self) -> Result<Item<'a>> {
         self.mark();
-        let meta: LineMeta = Default::default();
+        let trivia: Trivia = Default::default();
         match self.current {
             '"' => self.parse_basic_string(),
             '\'' => self.parse_literal_string(),
@@ -267,7 +267,7 @@ impl<'a> Parser<'a> {
 
                 Ok(Item::Bool {
                     val: true,
-                    meta: meta,
+                    meta: trivia,
                 })
             }
             // Boolean: False
@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
 
                 Ok(Item::Bool {
                     val: false,
-                    meta: meta,
+                    meta: trivia,
                 })
             }
             // Array
@@ -302,7 +302,7 @@ impl<'a> Parser<'a> {
                     let next = match self.current {
                         '#' => {
                             let (cws, comment, trail) = self.parse_comment_trail();
-                            Item::Comment(LineMeta {
+                            Item::Comment(Trivia {
                                 indent: "",
                                 comment_ws: cws,
                                 comment: comment,
@@ -317,7 +317,7 @@ impl<'a> Parser<'a> {
 
                 let res = Item::Array {
                     val: elems,
-                    meta: meta,
+                    meta: trivia,
                 };
 
                 if res.is_homogeneous() {
@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
 
                 Ok(Item::InlineTable {
                     val: elems,
-                    meta: meta,
+                    meta: trivia,
                 })
             }
             // Integer, Float, or DateTime
@@ -364,7 +364,7 @@ impl<'a> Parser<'a> {
                 if let Ok(res) = i64::from_str(&clean) {
                     return Ok(Item::Integer {
                         val: res,
-                        meta: meta,
+                        meta: trivia,
                         raw: raw,
                     });
                 } else if let Ok(res) = f64::from_str(&clean) {
@@ -372,14 +372,14 @@ impl<'a> Parser<'a> {
                     // readability. Each underscore must be surrounded by at least one digit."
                     return Ok(Item::Float {
                         val: res,
-                        meta: meta,
+                        meta: trivia,
                         raw: raw,
                     });
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
                     return Ok(Item::DateTime {
                         val: res,
                         raw: raw, // XXX this was `clean`, why?
-                        meta: meta,
+                        meta: trivia,
                     });
                 } else {
                     bail!(ErrorKind::InvalidNumberOrDate);
@@ -593,7 +593,7 @@ impl<'a> Parser<'a> {
                         let table = Item::Table {
                             is_array: is_aot,
                             val: values.clone(),
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: indent,
                                 comment_ws: cws,
                                 comment: comment,
@@ -620,7 +620,7 @@ impl<'a> Parser<'a> {
             result = Item::Table {
                 is_array: is_aot,
                 val: values.clone(),
-                meta: LineMeta {
+                meta: Trivia {
                     indent: indent,
                     comment_ws: cws,
                     comment: comment,

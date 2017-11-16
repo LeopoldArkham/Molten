@@ -69,7 +69,7 @@ fn empty() -> TOMLDocument<'static> {
 
 fn simple() -> TOMLDocument<'static> {
     let mut container = Container::new();
-    let trivia = LineMeta::empty();
+    let trivia = Trivia::empty();
 
     let bool_k = Key::new("bool");
     let bool_v = Item::Bool {val: true, meta: trivia.clone()};
@@ -93,7 +93,7 @@ fn simple() -> TOMLDocument<'static> {
 
 fn AoTs() -> TOMLDocument<'static> {
     let mut container = Container::new();
-    let trivia = LineMeta::empty();
+    let trivia = Trivia::empty();
 
     let mut payload_first = Vec::new();
 

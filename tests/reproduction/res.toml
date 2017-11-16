@@ -24,7 +24,7 @@ TOMLDocument(
                                         ),
                                         Integer {
                                             val: 1,
-                                            meta: LineMeta {
+                                            meta: Trivia {
                                                 indent: "",
                                                 comment_ws: "",
                                                 comment: "",
@@ -41,7 +41,7 @@ TOMLDocument(
                                     )
                                 ]
                             },
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: "",
                                 comment_ws: "",
                                 comment: "",
@@ -70,7 +70,7 @@ TOMLDocument(
                                         ),
                                         Integer {
                                             val: 2,
-                                            meta: LineMeta {
+                                            meta: Trivia {
                                                 indent: "",
                                                 comment_ws: "",
                                                 comment: "",
@@ -87,7 +87,7 @@ TOMLDocument(
                                     )
                                 ]
                             },
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: "",
                                 comment_ws: "",
                                 comment: "",
@@ -117,7 +117,7 @@ TOMLDocument(
                                         ),
                                         Integer {
                                             val: 3,
-                                            meta: LineMeta {
+                                            meta: Trivia {
                                                 indent: "",
                                                 comment_ws: "",
                                                 comment: "",
@@ -147,7 +147,7 @@ TOMLDocument(
                                                                     t: SLB,
                                                                     val: "3.1",
                                                                     original: "3.1",
-                                                                    meta: LineMeta {
+                                                                    meta: Trivia {
                                                                         indent: "",
                                                                         comment_ws: "",
                                                                         comment: "",
@@ -157,7 +157,7 @@ TOMLDocument(
                                                             )
                                                         ]
                                                     },
-                                                    meta: LineMeta {
+                                                    meta: Trivia {
                                                         indent: "",
                                                         comment_ws: "",
                                                         comment: "",
@@ -169,7 +169,7 @@ TOMLDocument(
                                     )
                                 ]
                             },
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: "",
                                 comment_ws: "",
                                 comment: "",
@@ -200,7 +200,7 @@ TOMLDocument(
                                             t: SLB,
                                             val: "3.2",
                                             original: "3.2",
-                                            meta: LineMeta {
+                                            meta: Trivia {
                                                 indent: "",
                                                 comment_ws: "",
                                                 comment: "",
@@ -216,7 +216,7 @@ TOMLDocument(
                                     )
                                 ]
                             },
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: "",
                                 comment_ws: "",
                                 comment: "",
@@ -245,7 +245,7 @@ TOMLDocument(
                                         ),
                                         Integer {
                                             val: 4,
-                                            meta: LineMeta {
+                                            meta: Trivia {
                                                 indent: "",
                                                 comment_ws: "",
                                                 comment: "",
@@ -256,7 +256,7 @@ TOMLDocument(
                                     )
                                 ]
                             },
-                            meta: LineMeta {
+                            meta: Trivia {
                                 indent: "",
                                 comment_ws: "",
                                 comment: "",
