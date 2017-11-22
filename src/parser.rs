@@ -84,11 +84,30 @@ impl<'a> Parser<'a> {
         self.marker = self.idx;
     }
 
-    /// Create error at the current position.
+    /// Converts a byte offset from an error message to a (line, column) pair.
+    ///
+    /// All indexes are 0-based.
+    fn to_linecol(&self, offset: usize) -> (usize, usize) {
+        let mut cur = 0;
+        for (i, line) in self.src.lines().enumerate() {
+            if cur + line.len() + 1 > offset {
+                return (i, offset - cur)
+            }
+            cur += line.len() + 1;
+        }
+        (self.src.lines().count(), 0)
+    }
+
+    /// Create a generic "parse error" at the current position.
     fn parse_error(&self) -> Error {
-        // @todo: Actually report position of error (#14)
-        let (line, col) = (0, 0);
+        let (line, col) = self.to_linecol(self.idx);
         ErrorKind::ParseError(line, col).into()
+    }
+
+    /// Create an error with the given kind wrapped in a "parse error"
+    /// containing the current position.
+    fn error(&self, err: ErrorKind) -> Error {
+        Error::from_kind(err).chain_err(|| self.parse_error())
     }
 
     /// Parses the input into a TOMLDocument
@@ -178,11 +197,11 @@ impl<'a> Parser<'a> {
         if self.end() {
             return ("", "", "");
         }
-        
+
         let mut comment = "";
         let mut comment_ws = "";
         self.mark();
-        
+
         loop {
             match self.current {
                 '\n' => break,
@@ -323,7 +342,7 @@ impl<'a> Parser<'a> {
                 if res.is_homogeneous() {
                     Ok(res)
                 } else {
-                    bail!(ErrorKind::MixedArrayTypes);
+                    Err(self.error(ErrorKind::MixedArrayTypes))
                 }
             }
             // Inline Table
@@ -382,10 +401,10 @@ impl<'a> Parser<'a> {
                         meta: trivia,
                     });
                 } else {
-                    bail!(ErrorKind::InvalidNumberOrDate);
+                    Err(self.error(ErrorKind::InvalidNumberOrDate))
                 }
             }
-            ch => bail!(ErrorKind::UnexpectedChar(ch)),
+            ch => Err(self.error(ErrorKind::UnexpectedChar(ch))),
         }
     }
 
@@ -406,7 +425,7 @@ impl<'a> Parser<'a> {
             StringType::SLB
         };
         // Skip opening delim.
-        self.inc() || bail!(ErrorKind::UnexpectedEof);
+        self.inc() || return Err(self.error(ErrorKind::UnexpectedEof));
         if self.current == delim {
             self.inc();
             if self.current == delim {
@@ -416,7 +435,7 @@ impl<'a> Parser<'a> {
                 } else {
                     StringType::MLB
                 };
-                self.inc() || bail!(ErrorKind::UnexpectedEof);
+                self.inc() || return Err(self.error(ErrorKind::UnexpectedEof));
             } else {
                 // Empty string.
                 return Ok(Item::Str {
@@ -450,7 +469,7 @@ impl<'a> Parser<'a> {
                     meta: Default::default(),
                 });
             } else {
-                self.inc() || bail!(ErrorKind::UnexpectedEof);
+                self.inc() || return Err(self.error(ErrorKind::UnexpectedEof));
             }
         }
     }
@@ -513,9 +532,9 @@ impl<'a> Parser<'a> {
 
         // @fixme: May need changing to allow leading indentation
         if self.current != '[' {
-            bail!(ErrorKind::InternalParserError(
+            return Err(self.error(ErrorKind::InternalParserError(
                 "Peek_table_name entered on non-bracket character".into(),
-            ));
+            )));
         }
 
         // AoT?
@@ -547,7 +566,7 @@ impl<'a> Parser<'a> {
         self.inc(); // Skip opening bracket.
 
         let is_aot = if self.current == '[' {
-            self.inc() || bail!(ErrorKind::UnexpectedEof)
+            self.inc() || return Err(self.error(ErrorKind::UnexpectedEof))
         } else {
             false
         };
@@ -608,10 +627,10 @@ impl<'a> Parser<'a> {
                     }
                     break;
                 } else {
-                    bail!(ErrorKind::InternalParserError(
+                    return Err(self.error(ErrorKind::InternalParserError(
                         "parse_item() returned None on a non-bracket character."
                             .into(),
-                    ))
+                    )))
                 }
             }
         }
