@@ -1,15 +1,66 @@
-
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 use container::Container;
 
+/// Type of TOML string.
+///
+/// There are four ways to express strings: basic, multi-line basic, 
+/// literal, and multi-line literal. All strings must contain only valid UTF-8 
+/// characters.
+///
+/// **Basic strings** are surrounded by quotation marks. Any Unicode 
+/// character may be used except those that must be escaped: quotation mark,
+/// backslash, and the control characters (U+0000 to U+001F).
+///
+/// ```text
+/// str = "I'm a string. \"You can quote me\". Name\tJos\u00E9\nLocation\tSF."
+/// ```
+///
+/// For convenience, common characters have a compact escape sequence.
+/// 
+/// | Escape       | Name            | Unicode Replacement |
+/// |--------------|-----------------|---------------------|
+/// | \b           | backspace       | (U+0008)            |
+/// | \t           | tab             | (U+0009)            |
+/// | \n           | linefeed        | (U+000A)            |
+/// | \f           | form feed       | (U+000C)            |
+/// | \r           | carriage return | (U+000D)            |
+/// | \"           | quote           | (U+0022)            |
+/// | \\           | backslash       | (U+005C)            |
+/// | `\uXXXX`     | unicode         | (U+XXXX)            |
+/// | `\UXXXXXXXX` | unicode         | (U+XXXXXXXX)        |
+///
+/// Any Unicode character may be escaped with the `\uXXXX` or `\UXXXXXXXX`
+/// forms. The escape codes must be valid Unicode scalar values.
+/// 
+/// All other escape sequences not listed above are reserved and, if used, 
+/// should produce an error.
+///
+/// **Multi-line basic** strings are surrounded by three quotation marks on 
+/// each side and allow newlines. A newline immediately following the opening
+/// delimiter will be trimmed. All other whitespace and newline characters
+/// remain intact.
+///
+/// **Literal strings** are surrounded by single quotes. Like basic strings,
+/// they must appear on a single line. Literal strings do not allow escaping
+/// of characters within the string.
+///
+/// **Multi-line literal** strings are surrounded by three single-quotes on 
+/// each side and allow newlines. A newline immediately following the opening
+/// delimiter will be trimmed. All other whitespace and newline characters
+/// remain intact. No escaping is allowed within the string.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StringType {
+    /// Single line basic string.
     SLB,
+    /// Multi-line basic string.
     MLB,
+    /// Single-line literal string.
     SLL,
+    /// Multi-line literal string.
     MLL,
 }
 
+/// Trivia information (aka metadata).
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Trivia<'a> {
     /// Whitespace before a value.
@@ -34,20 +85,26 @@ impl<'a> Trivia<'a> {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 /// The type of a key.
-/// Keys can be bare or follow the same rules as
-/// either string type.
+/// Keys can be bare or follow the same rules as either string type.
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {
+    /// Bare key.
     Bare,
+    /// Basic key.
     Basic,
+    /// Literal key.
     Literal,
 }
 
+/// A key value.
 #[derive(Hash, Clone)]
 pub struct Key<'a> {
+    /// The type of the key
     pub t: KeyType,
+    /// The key separator
     pub sep: &'a str,
+    /// The actual key value
     pub key: &'a str,
 }
 
@@ -77,6 +134,7 @@ impl<'a> ::std::fmt::Debug for Key<'a> {
 }
 
 impl<'a> Key<'a> {
+    /// Returns the string represenation of a `Key`.
     pub fn as_string(&self) -> String {
         let quote = match self.t {
             KeyType::Bare => "",
@@ -88,49 +146,87 @@ impl<'a> Key<'a> {
     }
 }
 
+/// An item within a TOML document.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Item<'a> {
+    /// A whitespace literal.
     WS(&'a str),
+    /// A comment literal.
     Comment(Trivia<'a>),
+    /// An integer literal.
     Integer {
+        /// The value of the integer.
         val: i64,
+        /// Trivia for the integer.
         meta: Trivia<'a>,
+        /// The original representation of the integer value.
         raw: &'a str,
     },
+    /// A float literal.
     Float {
+        /// The value of the float.
         val: f64,
+        /// Trivia data for the Float.
         meta: Trivia<'a>,
+        /// The original string representation of the value.
         raw: &'a str,
     },
-    Bool { val: bool, meta: Trivia<'a> },
+    /// A bool literal.
+    Bool { 
+        /// The value of the boolean.
+        val: bool, 
+        /// Trivia data for the boolean.
+        meta: Trivia<'a> 
+    },
+    /// A datetime literal.
     DateTime {
+        /// The value of the date/time.
         val: ChronoDateTime<FixedOffset>,
+        /// The original string representation of the value.
         raw: &'a str,
+        /// Trivia data for the datetime value.
         meta: Trivia<'a>,
     },
+    /// An array literal.
     Array {
+        /// The contents of the array.
         val: Vec<Item<'a>>,
+        /// Trivia data for the array.
         meta: Trivia<'a>,
     },
+    /// A table literal.
     Table {
+        /// `true` if the table is a member of an AoT.
         is_array: bool,
+        /// The contents of the table.
         val: Container<'a>,
+        /// Triva data for the table.
         meta: Trivia<'a>,
     },
+    /// An inline table literal.
     InlineTable {
+        /// The contents of the table.
         val: Container<'a>,
+        /// Triva data for the table.
         meta: Trivia<'a>,
     },
+    /// A string literal.
     Str {
+        /// The type of string this represents
         t: StringType,
-        val: &'a str, // TODO, make Cow
+        /// The string value
+        val: &'a str, // TODO: make Cow
+        /// Original string value, including any decoration
         original: &'a str,
+        /// Trivia data for the string
         meta: Trivia<'a>,
     },
+    /// An AoT literal.
     AoT(Vec<Item<'a>>),
 }
 
 impl<'a> Item<'a> {
+    /// Returns a unique integer that represents the type of the `Item`.
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
         match *self {
@@ -167,6 +263,7 @@ impl<'a> Item<'a> {
         }
     }
 
+    /// Returns the string representation of an `Item`.
     pub fn as_string(&self) -> String {
         use self::Item::*;
         match *self {
@@ -227,6 +324,7 @@ impl<'a> Item<'a> {
         }
     }
 
+    /// Returns a `Trivia`.
     pub fn meta(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
@@ -245,6 +343,7 @@ impl<'a> Item<'a> {
         }
     }
 
+    /// Returns a mutable `Trivia`.
     pub fn meta_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {

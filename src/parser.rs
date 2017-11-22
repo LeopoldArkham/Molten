@@ -8,10 +8,11 @@ use chrono::DateTime as ChronoDateTime;
 
 use std::str::{FromStr, CharIndices};
 
-// Allowing dead code due to https://github.com/rust-lang/rust/issues/18290
+// FIXME: Allowing dead code due to https://github.com/rust-lang/rust/issues/18290
 #[allow(non_camel_case_types, dead_code)]
 type isAOT = bool;
 
+/// Parser for TOML documents.
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// Input to parse.
@@ -29,7 +30,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser from a &str.
+    /// Creates a new parser from a &str.
     pub fn new(input: &'a str) -> Parser<'a> {
         let mut p = Parser {
             src: input,
@@ -43,7 +44,7 @@ impl<'a> Parser<'a> {
         p
     }
 
-    /// Extract the value between marker and index.
+    /// Extracts the value between marker and index.
     fn extract(&mut self) -> &'a str {
         if self.end() {
             &self.src[self.marker..]
@@ -52,7 +53,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Dirty hack that should go away
+    // HACK: this should go away
+    /// Extracts the exact value between marker and index.
     fn extract_exact(&mut self) -> &'a str {
         &self.src[self.marker..self.idx]
     }
@@ -101,6 +103,7 @@ impl<'a> Parser<'a> {
     /// Create a generic "parse error" at the current position.
     fn parse_error(&self) -> Error {
         let (line, col) = self.to_linecol(self.idx);
+
         ErrorKind::ParseError(line, col).into()
     }
 
@@ -151,9 +154,9 @@ impl<'a> Parser<'a> {
         loop {
             match self.current {
                 // Found a newline; Return all whitespace found up to this point.
-                // @todo: merge consecutive WS
+                // TODO: merge consecutive WS
                 '\n' => {
-                    self.inc(); // TODO eof
+                    self.inc(); // TODO: eof
                     return Ok(Some((None, Item::WS(self.extract()))));
                 }
                 // Skip whitespace.
@@ -368,11 +371,6 @@ impl<'a> Parser<'a> {
             '+' | '-' | '0'...'9' => {
                 while self.current.not_in(" \t\n\r#,]}") && self.inc() {}
 
-                // TODO EOF shittiness
-                // if !self.current.is_digit(10) {
-                //     self.idx -= 1;
-                // }
-
                 let raw = self.extract();
 
                 let clean: String = raw.chars()
@@ -387,7 +385,7 @@ impl<'a> Parser<'a> {
                         raw: raw,
                     });
                 } else if let Ok(res) = f64::from_str(&clean) {
-                    // @incomplete: "Similar to integers, you may use underscores to enhance
+                    // TODO: "Similar to integers, you may use underscores to enhance
                     // readability. Each underscore must be surrounded by at least one digit."
                     return Ok(Item::Float {
                         val: res,
@@ -416,6 +414,7 @@ impl<'a> Parser<'a> {
         self.parse_string('"')
     }
 
+    /// Parses a string element
     fn parse_string(&mut self, delim: char) -> Result<Item<'a>> {
         // TODO: Handle escaping.
         let mut multiline = false;
@@ -457,7 +456,7 @@ impl<'a> Parser<'a> {
                             // Not a triple quote, leave in result as-is.
                             continue 'outer;
                         }
-                        self.inc(); // TODO Handle EOF
+                        self.inc(); // TODO: Handle EOF
                     }
                 } else {
                     self.inc();
@@ -530,7 +529,7 @@ impl<'a> Parser<'a> {
         let current = self.current;
         let marker = self.marker;
 
-        // @fixme: May need changing to allow leading indentation
+        // FIXME: May need changing to allow leading indentation
         if self.current != '[' {
             return Err(self.error(ErrorKind::InternalParserError(
                 "Peek_table_name entered on non-bracket character".into(),
@@ -541,7 +540,6 @@ impl<'a> Parser<'a> {
         self.inc();
         let is_AOT = match self.current {
             '[' => {
-                println!("AOT");
                 self.inc();
                 true as isAOT
             }
@@ -561,6 +559,7 @@ impl<'a> Parser<'a> {
         Ok((is_AOT, table_name))
     }
 
+    /// Parses a table element.
     pub fn parse_table(&mut self) -> Result<(Key<'a>, Item<'a>)> {
         let indent = self.extract();
         self.inc(); // Skip opening bracket.
@@ -573,7 +572,7 @@ impl<'a> Parser<'a> {
 
         // Key
         self.mark();
-        // TODO, handle EOF.
+        // TODO:, handle EOF.
         while self.current != ']' && self.inc() {}
 
         // TODO: Key parsing and validation.
@@ -592,10 +591,10 @@ impl<'a> Parser<'a> {
 
         let (cws, comment, trail) = self.parse_comment_trail();
 
-        // @cleanup: Total hack, add undecided variant
+        // CLEANUP: Total hack, add undecided variant
         let mut result = Item::integer("999");
         let mut values = Container::new();
-        // @cleanup: Wait for table API:
+        // CLEANUP: Wait for table API:
         // Use table API to add kv's as they come so result is never
         // uninitialized
         while !self.end() {
@@ -634,7 +633,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        // @cleanup: undecided variant
+        // CLEANUP: undecided variant
         if result.is_integer() {
             result = Item::Table {
                 is_array: is_aot,
@@ -650,8 +649,9 @@ impl<'a> Parser<'a> {
         Ok((key, result))
     }
 
+    /// Parses all siblings of the provided table `first` and
+    /// bundles them into an AoT.
     fn parse_aot(&mut self, first: Item<'a>, name_first: &'a str) -> Result<Item<'a>> {
-        // We are in an AoT, and next is not a child of first.
         let mut payload = vec![first];
         self.AoT_stack.push(name_first);
         while !self.end() {
