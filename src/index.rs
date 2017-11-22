@@ -20,7 +20,7 @@ impl<'a> Index<usize> for TOMLDocument<'a> {
     type Output = Item<'a>;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        // XXX TODO
+        // XXX TODO:
         &self.0.body[idx].1
         // self.0.iter().nth(idx).expect("Indexing TOMLDoc failed")
     }
@@ -33,7 +33,7 @@ impl<'a> Index<usize> for Item<'a> {
         use self::Item::*;
         match *self {
             Array { ref val, .. } => &val[idx],
-            // XXX TODO
+            // XXX TODO:
             // Table { ref val, .. } => &val.iter().nth(idx).expect("Indexing Table failed"),
             // InlineTable { ref val, .. } => {
             //     &val.iter().nth(idx).expect("Indexing InlineTable failed")

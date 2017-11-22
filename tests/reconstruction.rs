@@ -41,7 +41,7 @@ lazy_static! {
 #[test_case("tests/reconstruction/simple.toml", "simple" :: "Simple")]
 #[test_case("tests/reconstruction/AoTs.toml", "AoTs" :: "AoT's")]
 /// Constructs a copy of the reference document using the API and 
-/// compares the two TOMLDoc hierarchies.
+/// compares the two `TOMLDocument` hierarchies.
 fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
     let mut reference = String::new();
     let mut f = File::open(&path).unwrap();

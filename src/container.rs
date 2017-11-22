@@ -3,13 +3,15 @@ use std::collections::HashMap;
 use items::*;
 use errors::*;
 
-#[derive(Debug, Clone, PartialEq)]
+/// A container for items within a `TOMLDocument`.
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Container<'a> {
     pub(crate) map: HashMap<Key<'a>, usize>,
     pub(crate) body: Vec<(Option<Key<'a>>, Item<'a>)>,
 }
 
 impl<'a> Container<'a> {
+    /// Create a new empty `Container`.
     pub fn new() -> Container<'a> {
         Container {
             map: HashMap::new(),
@@ -17,6 +19,7 @@ impl<'a> Container<'a> {
         }
     }
 
+    /// Add a key, item pair to the container.
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
@@ -30,7 +33,8 @@ impl<'a> Container<'a> {
         Ok(())
     }
 
-    // @cleanup: minimize duplication with Item::as_string()
+    /// Return the string representation of a `Container`.
+    // TODO: minimize duplication with Item::as_string()
     pub fn as_string(&self) -> String {
         let mut s = String::new();
         for (k, v) in self.body.clone().into_iter() {
@@ -89,6 +93,7 @@ impl<'a> Container<'a> {
         s
     }
 
+    /// Return a container iterator.
     pub fn iter(&'a self) -> ContainerIterator<'a> {
         ContainerIterator {
             container: self,
@@ -96,6 +101,7 @@ impl<'a> Container<'a> {
         }
     }
 
+    /// Return an exhauseive container iterator.
     pub fn iter_exhaustive(&self) -> ContainerIteratorExhaustive {
         ContainerIteratorExhaustive {
             container: self,
@@ -104,6 +110,8 @@ impl<'a> Container<'a> {
     }
 }
 
+/// An iterator that returns the items in the container.
+#[derive(Debug)]
 pub struct ContainerIterator<'a> {
     container: &'a Container<'a>,
     current: usize,
@@ -112,7 +120,7 @@ pub struct ContainerIterator<'a> {
 impl<'a> Iterator for ContainerIterator<'a> {
     type Item = &'a Item<'a>;
 
-    // @cleanup: "There must be a better way"
+    // CLEANUP: There must be a better way
     fn next(&mut self) -> Option<&'a Item<'a>> {
         loop {
             if self.current == self.container.body.len() {
@@ -130,6 +138,8 @@ impl<'a> Iterator for ContainerIterator<'a> {
     }
 }
 
+/// An iterator that returns **all** items in the container.
+#[derive(Debug)]
 pub struct ContainerIteratorExhaustive<'a> {
     container: &'a Container<'a>,
     current: usize,

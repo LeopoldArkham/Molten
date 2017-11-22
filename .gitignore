@@ -1,7 +1,12 @@
-target
+target/
+doc/
 Cargo.lock
 *.rs.bk
+*.rs.fmt
 tests/res.toml
 \.vscode/
+\#*\#
+*\~
 
 *.txt
+*.code-workspace
