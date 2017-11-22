@@ -30,7 +30,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser from a &str.
+    /// Creates a new parser from a &str.
     pub fn new(input: &'a str) -> Parser<'a> {
         let mut p = Parser {
             src: input,
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
         p
     }
 
-    /// Extract the value between marker and index.
+    /// Extracts the value between marker and index.
     fn extract(&mut self) -> &'a str {
         if self.end() {
             &self.src[self.marker..]
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
     }
 
     // HACK: this should go away
-    /// Extract the exact value between marker and index.
+    /// Extracts the exact value between marker and index.
     fn extract_exact(&mut self) -> &'a str {
         &self.src[self.marker..self.idx]
     }
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
         self.marker = self.idx;
     }
 
-    /// Create error at the current position.
+    /// Creates an error at the current position.
     fn parse_error(&self) -> Error {
         // TODO: Actually report position of error (#14)
         let (line, col) = (0, 0);
@@ -351,11 +351,6 @@ impl<'a> Parser<'a> {
             '+' | '-' | '0'...'9' => {
                 while self.current.not_in(" \t\n\r#,]}") && self.inc() {}
 
-                // TODO: EOF shittiness
-                // if !self.current.is_digit(10) {
-                //     self.idx -= 1;
-                // }
-
                 let raw = self.extract();
 
                 let clean: String = raw.chars()
@@ -399,6 +394,7 @@ impl<'a> Parser<'a> {
         self.parse_string('"')
     }
 
+    /// Parses a string element
     fn parse_string(&mut self, delim: char) -> Result<Item<'a>> {
         // TODO: Handle escaping.
         let mut multiline = false;
@@ -524,7 +520,6 @@ impl<'a> Parser<'a> {
         self.inc();
         let is_AOT = match self.current {
             '[' => {
-                println!("AOT");
                 self.inc();
                 true as isAOT
             }
@@ -544,7 +539,7 @@ impl<'a> Parser<'a> {
         Ok((is_AOT, table_name))
     }
 
-    /// Parse a table element.
+    /// Parses a table element.
     pub fn parse_table(&mut self) -> Result<(Key<'a>, Item<'a>)> {
         let indent = self.extract();
         self.inc(); // Skip opening bracket.
@@ -634,8 +629,9 @@ impl<'a> Parser<'a> {
         Ok((key, result))
     }
 
+    /// Parses all siblings of the provided table `first` and
+    /// bundles them into an AoT.
     fn parse_aot(&mut self, first: Item<'a>, name_first: &'a str) -> Result<Item<'a>> {
-        // We are in an AoT, and next is not a child of first.
         let mut payload = vec![first];
         self.AoT_stack.push(name_first);
         while !self.end() {

@@ -11,7 +11,7 @@ pub struct Container<'a> {
 }
 
 impl<'a> Container<'a> {
-    /// Create a new empty `Container`.
+    /// Creates a new empty `Container`.
     pub fn new() -> Container<'a> {
         Container {
             map: HashMap::new(),
@@ -19,7 +19,7 @@ impl<'a> Container<'a> {
         }
     }
 
-    /// Add a key, item pair to the container.
+    /// Adds a (key, item) pair to the container.
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
@@ -33,7 +33,7 @@ impl<'a> Container<'a> {
         Ok(())
     }
 
-    /// Return the string representation of a `Container`.
+    /// Returns the string representation of a `Container`.
     // TODO: minimize duplication with Item::as_string()
     pub fn as_string(&self) -> String {
         let mut s = String::new();
@@ -93,7 +93,7 @@ impl<'a> Container<'a> {
         s
     }
 
-    /// Return a container iterator.
+    /// Returns a container iterator.
     pub fn iter(&'a self) -> ContainerIterator<'a> {
         ContainerIterator {
             container: self,
@@ -101,7 +101,7 @@ impl<'a> Container<'a> {
         }
     }
 
-    /// Return an exhauseive container iterator.
+    /// Returns an exhauseive container iterator.
     pub fn iter_exhaustive(&self) -> ContainerIteratorExhaustive {
         ContainerIteratorExhaustive {
             container: self,

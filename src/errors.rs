@@ -47,7 +47,7 @@ error_chain! {
             description("Internal Parser Error")
             display("{}\n The parser has violated one of its invariants.
             This is a bug.\n
-            Please open an issue uqoting this message at
+            Please open an issue citing this message at
             https://github.com/LeopoldArkham/Molten", msg)
         }
     }

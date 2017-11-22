@@ -134,7 +134,7 @@ impl<'a> ::std::fmt::Debug for Key<'a> {
 }
 
 impl<'a> Key<'a> {
-    /// Return the string represenation of a `Key`.
+    /// Returns the string represenation of a `Key`.
     pub fn as_string(&self) -> String {
         let quote = match self.t {
             KeyType::Bare => "",
@@ -196,7 +196,7 @@ pub enum Item<'a> {
     },
     /// A table literal.
     Table {
-        /// `true` if the table is an array.
+        /// `true` if the table is a member of an AoT.
         is_array: bool,
         /// The contents of the table.
         val: Container<'a>,
@@ -214,8 +214,8 @@ pub enum Item<'a> {
     Str {
         /// The type of string this represents
         t: StringType,
-        /// The straing value
-        val: &'a str, // TODO:, make Cow
+        /// The string value
+        val: &'a str, // TODO: make Cow
         /// Original string value, including any decoration
         original: &'a str,
         /// Trivia data for the string
@@ -324,7 +324,7 @@ impl<'a> Item<'a> {
         }
     }
 
-    /// Return a `Trivia`.
+    /// Returns a `Trivia`.
     pub fn meta(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
@@ -343,7 +343,7 @@ impl<'a> Item<'a> {
         }
     }
 
-    /// Return a mutabile `Trivia`.
+    /// Returns a mutable `Trivia`.
     pub fn meta_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {

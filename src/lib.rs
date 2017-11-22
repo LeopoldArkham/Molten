@@ -50,7 +50,7 @@ assert_eq!(toml, parsed.as_string());
 // #![warn(missing_docs)]
 #![allow(non_snake_case)]
 //#[allow(unused_imports)]
-//#[macro_use]
+
 extern crate pretty_assertions;
 extern crate chrono;
 #[macro_use]
