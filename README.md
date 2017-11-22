@@ -17,7 +17,7 @@ functionality to Cargo itself.
 
 ### Non-Goals
 - Error recovery: Molten does not try to correct recoverable errors.
-- Serialization/Deserialization: See [toml-rs](https://github.com/alexcrichton/toml-rs) for this.
+- Serde support: See [toml-rs](https://github.com/alexcrichton/toml-rs) for this.
 
 # License
 
