@@ -86,6 +86,20 @@ impl<'a> Parser<'a> {
         self.marker = self.idx;
     }
 
+    /// Saves the current position and all related information, to be passed to
+    /// `restore_idx` later if the parser needs to rewind for any reason. Consistently
+    /// using these methods will make sure the cursor stays consistent.
+    fn save_idx(&self) -> (CharIndices<'a>, usize, char) {
+        (self.chars.clone(), self.idx, self.current)
+    }
+
+    /// Restores the position that was saved with `save_idx`.
+    fn restore_idx(&mut self, (chars, idx, current): (CharIndices<'a>, usize, char)) {
+        self.chars = chars;
+        self.idx = idx;
+        self.current = current;
+    }
+
     /// Converts a byte offset from an error message to a (line, column) pair.
     ///
     /// All indexes are 0-based.
@@ -163,6 +177,7 @@ impl<'a> Parser<'a> {
     pub fn parse_item(&mut self) -> Result<Option<(Option<Key<'a>>, Item<'a>)>> {
         // Mark start of whitespace
         self.mark();
+        let saved_idx = self.save_idx();
         loop {
             match self.current {
                 // Found a newline; Return all whitespace found up to this point.
@@ -196,7 +211,7 @@ impl<'a> Parser<'a> {
                 // Return to beginning of whitespace so it gets included
                 // as indentation for the KV about to be parsed.
                 _ => {
-                    self.idx = self.marker;
+                    self.restore_idx(saved_idx);
                     let (key, value) = self.parse_key_value(true)?;
                     return Ok(Some((key, value)));
                 }
@@ -239,7 +254,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        while self.inc() && self.current.is_spaces() {}
+        while self.current.is_spaces() && self.inc() {}
         if self.current == '\r' {
             self.inc();
         }
@@ -535,9 +550,7 @@ impl<'a> Parser<'a> {
     /// as well as whether it is part of an AoT.
     fn peek_table(&mut self) -> Result<(isAOT, &'a str)> {
         // Save initial state
-        let chars = self.chars.clone();
-        let idx = self.idx;
-        let current = self.current;
+        let idx = self.save_idx();
         let marker = self.marker;
 
         // FIXME: May need changing to allow leading indentation
@@ -562,9 +575,7 @@ impl<'a> Parser<'a> {
         let table_name = self.extract();
 
         // Restore initial state
-        self.chars = chars;
-        self.idx = idx;
-        self.current = current;
+        self.restore_idx(idx);
         self.marker = marker;
 
         Ok((is_AOT, table_name))
