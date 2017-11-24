@@ -1,5 +1,6 @@
 #![feature(proc_macro)]
 
+#[macro_use]
 extern crate Molten;
 extern crate test_case_derive;
 #[macro_use]
@@ -33,6 +34,8 @@ lazy_static! {
         m.insert("empty", empty as fn() -> TOMLDocument<'static>);
         m.insert("simple", simple as fn() -> TOMLDocument<'static>);
         m.insert("AoTs", AoTs as fn() -> TOMLDocument<'static>);
+        m.insert("whitespace", whitespace as fn() -> TOMLDocument<'static>);
+        m.insert("indented", indented as fn() -> TOMLDocument<'static>);
         m
     };
 }
@@ -40,6 +43,8 @@ lazy_static! {
 #[test_case("tests/reconstruction/empty.toml", "empty" :: "Empty")]
 #[test_case("tests/reconstruction/simple.toml", "simple" :: "Simple")]
 #[test_case("tests/reconstruction/AoTs.toml", "AoTs" :: "AoT's")]
+#[test_case("tests/reconstruction/whitespace.toml", "whitespace" :: "Whitespace")]
+#[test_case("tests/reconstruction/indented.toml", "indented" :: "Indented")]
 /// Constructs a copy of the reference document using the API and 
 /// compares the two `TOMLDocument` hierarchies.
 fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
@@ -54,7 +59,8 @@ fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
     };
 
     assert_eq!(reference, under_test.as_string());
-    // assert_eq!(parsed, under_test);
+    assert_eq!(parsed, under_test);
+    
     let mut original = File::create("parsed.txt").unwrap();
     let mut reconstructed = File::create("reconstructed.txt").unwrap();
 
@@ -213,5 +219,48 @@ fn AoTs() -> TOMLDocument<'static> {
     let _ = container.append(first_k, first_v);
     let _ = container.append(second_k, second_v);
     
+    TOMLDocument(container)
+}
+
+fn whitespace() -> TOMLDocument<'static> {
+    let mut container = Container::new();
+    let trivia = Trivia::empty();
+    let item = Item::WS(concat!(
+        "           ", nl!(),
+        "\t", nl!(),
+        nl!(),
+        "    ", nl!(),
+        "  \t    ", nl!()
+    ));
+    container.append(None, item).unwrap();
+    TOMLDocument(container)
+}
+
+fn indented() -> TOMLDocument<'static> {
+    let mut container = Container::new();
+
+    let mut trivia = Trivia::empty();
+    trivia.trail = concat!("  ", nl!());
+    let key = Key::new("bool");
+    let value = Item::Bool {val: true, meta: trivia};
+    container.append(key, value).unwrap();
+
+    let mut trivia = Trivia::empty();
+    trivia.indent = "\t";
+    trivia.trail = concat!("\t", nl!());
+    let key = Key::new("string");
+    let value = Item::Str {t: StringType::SLB, val: "Hello!", original: "Hello!", meta: trivia};
+    container.append(key, value).unwrap();
+
+    let trivia = Trivia::empty();
+    let value = Item::WS(concat!(nl!(), nl!()));
+    container.append(None, value).unwrap();
+
+    let mut trivia = Trivia::empty();
+    trivia.indent = " ";
+    let key = Key::new("int");
+    let value = Item::Integer {val: 42, meta: trivia, raw: "42"};
+    container.append(key, value).unwrap();
+
     TOMLDocument(container)
 }

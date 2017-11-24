@@ -125,7 +125,19 @@ impl<'a> Parser<'a> {
             }
             // Otherwise, take and append one KV.
             if let Some((key, value)) = self.parse_item()? {
-                body.append(key, value).chain_err(|| self.parse_error())?;
+                // If we're about to put a WS item right after another WS item, combine them instead.
+                let mut combined = false;
+                if let Some(last) = body.last_item_mut() {
+                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &value) {
+                        let start = self.idx - (prefix.len() + suffix.len());
+                        *last = Item::WS(&self.src[start..self.idx]);
+                        combined = true;
+                    }
+                }
+                if !combined {
+                    body.append(key, value).chain_err(|| self.parse_error())?;
+                }
+
                 self.mark();
             } else {
                 break;
@@ -154,7 +166,6 @@ impl<'a> Parser<'a> {
         loop {
             match self.current {
                 // Found a newline; Return all whitespace found up to this point.
-                // TODO: merge consecutive WS
                 '\n' => {
                     self.inc(); // TODO: eof
                     return Ok(Some((None, Item::WS(self.extract()))));
@@ -599,7 +610,18 @@ impl<'a> Parser<'a> {
         // uninitialized
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
-                values.append(key, item)?;
+                // If we're about to put a WS item right after another WS item, combine them instead.
+                let mut combined = false;
+                if let Some(last) = values.last_item_mut() {
+                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &item) {
+                        let start = self.idx - (prefix.len() + suffix.len());
+                        *last = Item::WS(&self.src[start..self.idx]);
+                        combined = true;
+                    }
+                }
+                if !combined {
+                    values.append(key, item)?;
+                }
             } else {
                 if self.current == '[' {
                     let (_, name_next) = self.peek_table()?;
