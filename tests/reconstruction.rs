@@ -118,7 +118,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
         let nested_k = Key::new("first.nested");
         let nested_v = Item::Table {
-            is_array: false,
+            is_aot_elem: false,
             val: nested_container,
             meta: trivia.clone(),
         };
@@ -126,7 +126,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(nested_k, nested_v);
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -140,7 +140,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(None, Item::WS(::NL));
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -165,7 +165,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
 
         let table = Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: table_container,
             meta: trivia.clone(),
         };
@@ -181,7 +181,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
         let nested_k = Key::new("first.nested");
         let nested_v = Item::Table {
-            is_array: false,
+            is_aot_elem: false,
             val: nested_container,
             meta: trivia.clone(),
         };
@@ -189,7 +189,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(nested_k, nested_v);
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -199,12 +199,12 @@ fn AoTs() -> TOMLDocument<'static> {
     payload_first.push(first_2);
     payload_first.push(first_3);
     
-    let first_k = Key::new("first");
+    let mut first_k = Key::new("first");
     let first_v = Item::AoT(payload_first);
 
     let mut payload_second = Vec::new();
     let table = Item::Table {
-        is_array: true,
+        is_aot_elem: true,
         val: Container::new(),
         meta: trivia.clone(),
     };
@@ -212,7 +212,7 @@ fn AoTs() -> TOMLDocument<'static> {
     payload_second.push(table.clone());
     payload_second.push(table.clone());    
 
-    let second_k = Key::new("second");
+    let mut second_k = Key::new("second");
     let second_v = Item::AoT(payload_second);
 
 

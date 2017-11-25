@@ -161,6 +161,14 @@ impl<'a> Parser<'a> {
         // Switch to parsing tables/arrays of tables until the end of the input.
         while !self.end() {
             let (k, v) = self.parse_table()?;
+            let v = match v {
+                Item::Table { is_aot_elem, .. } if is_aot_elem => {
+                    // This is just the first table in an AoT. Parse the rest of the array
+                    // along with it.
+                    self.parse_aot(v, k.key)?
+                },
+                _ => v
+            };
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
         Ok(TOMLDocument(body))
@@ -642,7 +650,7 @@ impl<'a> Parser<'a> {
                         values.append(key_next, table_next)?;
                     } else {
                         let table = Item::Table {
-                            is_array: is_aot,
+                            is_aot_elem: is_aot,
                             val: values.clone(),
                             meta: Trivia {
                                 indent: indent,
@@ -669,7 +677,7 @@ impl<'a> Parser<'a> {
         // CLEANUP: undecided variant
         if result.is_integer() {
             result = Item::Table {
-                is_array: is_aot,
+                is_aot_elem: is_aot,
                 val: values.clone(),
                 meta: Trivia {
                     indent: indent,
