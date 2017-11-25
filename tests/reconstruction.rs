@@ -101,7 +101,7 @@ mod constructors {
 
             let nested_k = Key::new("first.nested");
             let nested_v = Item::Table {
-                is_array: false,
+            is_aot_elem: false,
                 val: nested_container,
                 meta: trivia.clone(),
             };
@@ -109,7 +109,7 @@ mod constructors {
             let _ = _container.append(nested_k, nested_v);
 
             Item::Table {
-                is_array: true,
+            is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -123,7 +123,7 @@ mod constructors {
             let _ = _container.append(None, Item::WS(::NL));
 
             Item::Table {
-                is_array: true,
+            is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -148,7 +148,7 @@ mod constructors {
 
 
             let table = Item::Table {
-                is_array: true,
+            is_aot_elem: true,
                 val: table_container,
                 meta: trivia.clone(),
             };
@@ -164,7 +164,7 @@ mod constructors {
 
             let nested_k = Key::new("first.nested");
             let nested_v = Item::Table {
-                is_array: false,
+            is_aot_elem: false,
                 val: nested_container,
                 meta: trivia.clone(),
             };
@@ -172,7 +172,7 @@ mod constructors {
             let _ = _container.append(nested_k, nested_v);
 
             Item::Table {
-                is_array: true,
+            is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -187,7 +187,7 @@ mod constructors {
 
         let mut payload_second = Vec::new();
         let table = Item::Table {
-            is_array: true,
+        is_aot_elem: true,
             val: Container::new(),
             meta: trivia.clone(),
         };
