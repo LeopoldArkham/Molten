@@ -1,1 +1,1 @@
-tests/**/*.toml text eol=LF
+*.toml text eol=LF
