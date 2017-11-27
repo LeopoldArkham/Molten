@@ -1,15 +1,16 @@
 # fractional
-flt1 = +1.0
-flt2 = 3.1415
-flt3 = -0.01
+flt01 = +1.0
+flt02 = 3.1415
+flt03 = -0.01
+flt04 = 0.1
 
 # exponent
-flt4 = 5e+22
-flt5 = 1e6
-flt6 = -2E-2  
+flt10 = 5e+22
+flt11 = 1e6
+flt12 = -2E-2
 
 # both
-flt7 = 6.626e-34
+flt20 = 6.626e-34
 
 # Cheeky space at the end
-flt8 = 9_224_617.445_991_228_313 
+flt30 = 9_224_617.445_991_228_313 

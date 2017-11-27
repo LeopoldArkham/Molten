@@ -127,6 +127,19 @@ impl<'a> Parser<'a> {
         Error::from_kind(err).chain_err(|| self.parse_error())
     }
 
+    /// Merges the given `Item` with the last one currently in the given `Container` if
+    /// both are whitespace items. Returns `true` if the items were merged.
+    fn merge_ws<'b>(&self, item: &'b Item<'a>, container: &'b mut Container<'a>) -> bool {
+        if let Some(last) = container.last_item_mut() {
+            if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, item) {
+                let start = self.idx - (prefix.len() + suffix.len());
+                *last = Item::WS(&self.src[start..self.idx]);
+                return true;
+            }
+        }
+        false
+    }
+
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = Container::new();
@@ -139,16 +152,7 @@ impl<'a> Parser<'a> {
             }
             // Otherwise, take and append one KV.
             if let Some((key, value)) = self.parse_item()? {
-                // If we're about to put a WS item right after another WS item, combine them instead.
-                let mut combined = false;
-                if let Some(last) = body.last_item_mut() {
-                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &value) {
-                        let start = self.idx - (prefix.len() + suffix.len());
-                        *last = Item::WS(&self.src[start..self.idx]);
-                        combined = true;
-                    }
-                }
-                if !combined {
+                if !self.merge_ws(&value, &mut body) {
                     body.append(key, value).chain_err(|| self.parse_error())?;
                 }
 
@@ -407,26 +411,9 @@ impl<'a> Parser<'a> {
 
                 let raw = self.extract();
 
-                let clean: String = raw.chars()
-                    .filter(|c| *c != '_' && *c != ' ')
-                    .collect::<String>();
-
-                // Forgiveness > Permission
-                if let Ok(res) = i64::from_str(&clean) {
-                    return Ok(Item::Integer {
-                        val: res,
-                        meta: trivia,
-                        raw: raw,
-                    });
-                } else if let Ok(res) = f64::from_str(&clean) {
-                    // TODO: "Similar to integers, you may use underscores to enhance
-                    // readability. Each underscore must be surrounded by at least one digit."
-                    return Ok(Item::Float {
-                        val: res,
-                        meta: trivia,
-                        raw: raw,
-                    });
-                } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(&clean) {
+                if let Some(item) = Parser::parse_number(raw, trivia.clone()) {
+                    return Ok(item);
+                } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(raw) {
                     return Ok(Item::DateTime {
                         val: res,
                         raw: raw, // XXX this was `clean`, why?
@@ -438,6 +425,51 @@ impl<'a> Parser<'a> {
             }
             ch => Err(self.error(ErrorKind::UnexpectedChar(ch))),
         }
+    }
+
+    fn parse_number(raw: &'a str, trivia: Trivia<'a>) -> Option<Item<'a>> {
+        // Leading zeros are not allowed
+        if raw.len() > 1 && raw.starts_with('0') && !raw.starts_with("0."){
+            return None;
+        }
+
+        // Underscores should be surrounded by digits
+        let (valid, last) = raw.chars()
+            .fold((true, None), |(valid, prev):(bool, Option<char>), c: char| {
+                if !valid { return (false, None); }
+                (match (prev, c) {
+                    (None, '_') => false,
+                    (Some(x), '_') | (Some('_'), x) => x.is_digit(10),
+                    _ => true
+                }
+                , Some(c))
+            });
+
+        if !valid || last == Some('_') {
+            return None;
+        }
+
+        // And it should parses as an int or a float
+        let clean: String = raw.chars()
+            .filter(|c| *c != '_' && *c != ' ')
+            .collect::<String>();
+
+        // Forgiveness > Permission
+        if let Ok(res) = i64::from_str(&clean) {
+            return Some(Item::Integer {
+                val: res,
+                meta: trivia,
+                raw,
+            });
+        } else if let Ok(res) = f64::from_str(&clean) {
+            return Some(Item::Float {
+                val: res,
+                meta: trivia,
+                raw,
+            });
+        }
+
+        None
     }
 
     fn parse_literal_string(&mut self) -> Result<Item<'a>> {
@@ -629,16 +661,7 @@ impl<'a> Parser<'a> {
         // uninitialized
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
-                // If we're about to put a WS item right after another WS item, combine them instead.
-                let mut combined = false;
-                if let Some(last) = values.last_item_mut() {
-                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &item) {
-                        let start = self.idx - (prefix.len() + suffix.len());
-                        *last = Item::WS(&self.src[start..self.idx]);
-                        combined = true;
-                    }
-                }
-                if !combined {
+                if !self.merge_ws(&item, &mut values) {
                     values.append(key, item)?;
                 }
             } else {
@@ -706,5 +729,19 @@ impl<'a> Parser<'a> {
         }
         self.AoT_stack.pop();
         Ok(Item::AoT(payload))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use parser::*;
+
+    #[test]
+    fn invalid_numbers() {
+        let invalid_ints = vec!["01", "_1", "1_", "1__2"];
+        let invalid_floats = vec!["00.1", "_1.0", "1.0_", "1_.0"];
+        invalid_ints.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
+        invalid_floats.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
     }
 }
