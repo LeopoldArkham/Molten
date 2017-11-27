@@ -98,7 +98,7 @@ pub enum KeyType {
 }
 
 /// A key value.
-#[derive(Hash, Clone)]
+#[derive(Clone)]
 pub struct Key<'a> {
     /// The type of the key
     pub t: KeyType,
@@ -124,6 +124,12 @@ impl<'a> Eq for Key<'a> {}
 impl<'a> PartialEq for Key<'a> {
     fn eq(&self, other: &Key) -> bool {
         self.key == other.key
+    }
+}
+
+impl<'a> ::std::hash::Hash for Key<'a> {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
     }
 }
 
@@ -197,7 +203,7 @@ pub enum Item<'a> {
     /// A table literal.
     Table {
         /// `true` if the table is a member of an AoT.
-        is_array: bool,
+        is_aot_elem: bool,
         /// The contents of the table.
         val: Container<'a>,
         /// Triva data for the table.

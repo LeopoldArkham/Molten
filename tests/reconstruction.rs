@@ -1,5 +1,6 @@
 #![feature(proc_macro)]
 
+#[macro_use]
 extern crate Molten;
 extern crate test_case_derive;
 #[macro_use]
@@ -33,6 +34,8 @@ lazy_static! {
         m.insert("empty", empty as fn() -> TOMLDocument<'static>);
         m.insert("simple", simple as fn() -> TOMLDocument<'static>);
         m.insert("AoTs", AoTs as fn() -> TOMLDocument<'static>);
+        m.insert("whitespace", whitespace as fn() -> TOMLDocument<'static>);
+        m.insert("indented", indented as fn() -> TOMLDocument<'static>);
         m
     };
 }
@@ -40,6 +43,8 @@ lazy_static! {
 #[test_case("tests/reconstruction/empty.toml", "empty" :: "Empty")]
 #[test_case("tests/reconstruction/simple.toml", "simple" :: "Simple")]
 #[test_case("tests/reconstruction/AoTs.toml", "AoTs" :: "AoT's")]
+#[test_case("tests/reconstruction/whitespace.toml", "whitespace" :: "Whitespace")]
+#[test_case("tests/reconstruction/indented.toml", "indented" :: "Indented")]
 /// Constructs a copy of the reference document using the API and 
 /// compares the two `TOMLDocument` hierarchies.
 fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
@@ -54,7 +59,8 @@ fn reconstuct<P: AsRef<Path> + Display>(path: P, constructor: &str) {
     };
 
     assert_eq!(reference, under_test.as_string());
-    // assert_eq!(parsed, under_test);
+    assert_eq!(parsed, under_test);
+    
     let mut original = File::create("parsed.txt").unwrap();
     let mut reconstructed = File::create("reconstructed.txt").unwrap();
 
@@ -112,7 +118,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
         let nested_k = Key::new("first.nested");
         let nested_v = Item::Table {
-            is_array: false,
+            is_aot_elem: false,
             val: nested_container,
             meta: trivia.clone(),
         };
@@ -120,7 +126,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(nested_k, nested_v);
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -134,7 +140,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(None, Item::WS(::NL));
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -159,7 +165,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
 
         let table = Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: table_container,
             meta: trivia.clone(),
         };
@@ -175,7 +181,7 @@ fn AoTs() -> TOMLDocument<'static> {
 
         let nested_k = Key::new("first.nested");
         let nested_v = Item::Table {
-            is_array: false,
+            is_aot_elem: false,
             val: nested_container,
             meta: trivia.clone(),
         };
@@ -183,7 +189,7 @@ fn AoTs() -> TOMLDocument<'static> {
         let _ = _container.append(nested_k, nested_v);
 
         Item::Table {
-            is_array: true,
+            is_aot_elem: true,
             val: _container,
             meta: trivia.clone(),
         }
@@ -193,12 +199,12 @@ fn AoTs() -> TOMLDocument<'static> {
     payload_first.push(first_2);
     payload_first.push(first_3);
     
-    let first_k = Key::new("first");
+    let mut first_k = Key::new("first");
     let first_v = Item::AoT(payload_first);
 
     let mut payload_second = Vec::new();
     let table = Item::Table {
-        is_array: true,
+        is_aot_elem: true,
         val: Container::new(),
         meta: trivia.clone(),
     };
@@ -206,12 +212,55 @@ fn AoTs() -> TOMLDocument<'static> {
     payload_second.push(table.clone());
     payload_second.push(table.clone());    
 
-    let second_k = Key::new("second");
+    let mut second_k = Key::new("second");
     let second_v = Item::AoT(payload_second);
 
 
     let _ = container.append(first_k, first_v);
     let _ = container.append(second_k, second_v);
     
+    TOMLDocument(container)
+}
+
+fn whitespace() -> TOMLDocument<'static> {
+    let mut container = Container::new();
+    let trivia = Trivia::empty();
+    let item = Item::WS(concat!(
+        "           ", nl!(),
+        "\t", nl!(),
+        nl!(),
+        "    ", nl!(),
+        "  \t    ", nl!()
+    ));
+    container.append(None, item).unwrap();
+    TOMLDocument(container)
+}
+
+fn indented() -> TOMLDocument<'static> {
+    let mut container = Container::new();
+
+    let mut trivia = Trivia::empty();
+    trivia.trail = concat!("  ", nl!());
+    let key = Key::new("bool");
+    let value = Item::Bool {val: true, meta: trivia};
+    container.append(key, value).unwrap();
+
+    let mut trivia = Trivia::empty();
+    trivia.indent = "\t";
+    trivia.trail = concat!("\t", nl!());
+    let key = Key::new("string");
+    let value = Item::Str {t: StringType::SLB, val: "Hello!", original: "Hello!", meta: trivia};
+    container.append(key, value).unwrap();
+
+    let trivia = Trivia::empty();
+    let value = Item::WS(concat!(nl!(), nl!()));
+    container.append(None, value).unwrap();
+
+    let mut trivia = Trivia::empty();
+    trivia.indent = " ";
+    let key = Key::new("int");
+    let value = Item::Integer {val: 42, meta: trivia, raw: "42"};
+    container.append(key, value).unwrap();
+
     TOMLDocument(container)
 }

@@ -33,6 +33,11 @@ impl<'a> Container<'a> {
         Ok(())
     }
 
+    // Returns a mutable reference to the item that was most recently been added to the container.
+    pub(crate) fn last_item_mut(&mut self) -> Option<&mut Item<'a>> {
+        self.body.last_mut().map(|&mut (_, ref mut v)| v)
+    }
+
     /// Returns the string representation of a `Container`.
     // TODO: minimize duplication with Item::as_string()
     pub fn as_string(&self) -> String {
@@ -40,8 +45,8 @@ impl<'a> Container<'a> {
         for (k, v) in self.body.clone().into_iter() {
             let cur: String = if k.is_some() {
                 match v {
-                    Item::Table { is_array, .. } => {
-                        let (open, close) = match is_array {
+                    Item::Table { is_aot_elem, .. } => {
+                        let (open, close) = match is_aot_elem {
                             true => ("[[", "]]"),
                             false => ("[", "]"),
                         };
