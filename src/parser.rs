@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
             '"' => self.parse_basic_string(),
             '\'' => self.parse_literal_string(),
             // Boolean: true
-            't' if &self.src[self.idx..self.idx + 4] == "true" => {
+            't' if self.src[self.idx..].starts_with("true") => {
                 self.inc();
                 self.inc();
                 self.inc();
@@ -331,7 +331,7 @@ impl<'a> Parser<'a> {
                 })
             }
             // Boolean: False
-            'f' if &self.src[self.idx..self.idx + 5] == "false" => {
+            'f' if self.src[self.idx..].starts_with("false") => {
                 self.inc();
                 self.inc();
                 self.inc();
@@ -743,5 +743,17 @@ mod tests {
         let invalid_floats = vec!["00.1", "_1.0", "1.0_", "1_.0"];
         invalid_ints.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
         invalid_floats.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
+    }
+
+    #[test]
+    fn issue41() {
+        let text = ::std::str::from_utf8(b"\'\'fb\'\xee\x9d\xbd").unwrap();
+        let _ = Parser::new(text).parse();
+    }
+
+    #[test]
+    fn issue42() {
+        let text = ::std::str::from_utf8(b"\'\nv\'f%\nb").unwrap();
+        let _ = Parser::new(text).parse();
     }
 }
