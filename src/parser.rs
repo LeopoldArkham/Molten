@@ -127,6 +127,19 @@ impl<'a> Parser<'a> {
         Error::from_kind(err).chain_err(|| self.parse_error())
     }
 
+    /// Merges the given `Item` with the last one currently in the given `Container` if
+    /// both are whitespace items. Returns `true` if the items were merged.
+    fn merge_ws<'b>(&self, item: &'b Item<'a>, container: &'b mut Container<'a>) -> bool {
+        if let Some(last) = container.last_item_mut() {
+            if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, item) {
+                let start = self.idx - (prefix.len() + suffix.len());
+                *last = Item::WS(&self.src[start..self.idx]);
+                return true;
+            }
+        }
+        false
+    }
+
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = Container::new();
@@ -139,16 +152,7 @@ impl<'a> Parser<'a> {
             }
             // Otherwise, take and append one KV.
             if let Some((key, value)) = self.parse_item()? {
-                // If we're about to put a WS item right after another WS item, combine them instead.
-                let mut combined = false;
-                if let Some(last) = body.last_item_mut() {
-                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &value) {
-                        let start = self.idx - (prefix.len() + suffix.len());
-                        *last = Item::WS(&self.src[start..self.idx]);
-                        combined = true;
-                    }
-                }
-                if !combined {
+                if !self.merge_ws(&value, &mut body) {
                     body.append(key, value).chain_err(|| self.parse_error())?;
                 }
 
@@ -629,16 +633,7 @@ impl<'a> Parser<'a> {
         // uninitialized
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
-                // If we're about to put a WS item right after another WS item, combine them instead.
-                let mut combined = false;
-                if let Some(last) = values.last_item_mut() {
-                    if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, &item) {
-                        let start = self.idx - (prefix.len() + suffix.len());
-                        *last = Item::WS(&self.src[start..self.idx]);
-                        combined = true;
-                    }
-                }
-                if !combined {
+                if !self.merge_ws(&item, &mut values) {
                     values.append(key, item)?;
                 }
             } else {
