@@ -13,7 +13,8 @@ functionality to Cargo itself.
 ### Goals
 - Speed: Molten is a one-pass parser which avoids allocation.
 - Unopinionated: Molten respects the way you wrote your document, to the letter.
-- Fully addressable: All toml elements can be edited, created, or deleted via the API.
+- Fully addressable: All TOML elements can be edited, created, or deleted via the API.
+- Strong API: The API does not let you create an invalid TOML file.
 
 ### Non-Goals
 - Error recovery: Molten does not try to correct recoverable errors.
