@@ -86,6 +86,20 @@ impl<'a> Parser<'a> {
         self.marker = self.idx;
     }
 
+    /// Saves the current position and all related information, to be passed to
+    /// `restore_idx` later if the parser needs to rewind for any reason. Consistently
+    /// using these methods will make sure the cursor stays consistent.
+    fn save_idx(&self) -> (CharIndices<'a>, usize, char) {
+        (self.chars.clone(), self.idx, self.current)
+    }
+
+    /// Restores the position that was saved with `save_idx`.
+    fn restore_idx(&mut self, (chars, idx, current): (CharIndices<'a>, usize, char)) {
+        self.chars = chars;
+        self.idx = idx;
+        self.current = current;
+    }
+
     /// Converts a byte offset from an error message to a (line, column) pair.
     ///
     /// All indexes are 0-based.
@@ -113,6 +127,19 @@ impl<'a> Parser<'a> {
         Error::from_kind(err).chain_err(|| self.parse_error())
     }
 
+    /// Merges the given `Item` with the last one currently in the given `Container` if
+    /// both are whitespace items. Returns `true` if the items were merged.
+    fn merge_ws<'b>(&self, item: &'b Item<'a>, container: &'b mut Container<'a>) -> bool {
+        if let Some(last) = container.last_item_mut() {
+            if let (&&mut Item::WS(prefix), &Item::WS(suffix)) = (&last, item) {
+                let start = self.idx - (prefix.len() + suffix.len());
+                *last = Item::WS(&self.src[start..self.idx]);
+                return true;
+            }
+        }
+        false
+    }
+
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = Container::new();
@@ -125,7 +152,10 @@ impl<'a> Parser<'a> {
             }
             // Otherwise, take and append one KV.
             if let Some((key, value)) = self.parse_item()? {
-                body.append(key, value).chain_err(|| self.parse_error())?;
+                if !self.merge_ws(&value, &mut body) {
+                    body.append(key, value).chain_err(|| self.parse_error())?;
+                }
+
                 self.mark();
             } else {
                 break;
@@ -135,6 +165,14 @@ impl<'a> Parser<'a> {
         // Switch to parsing tables/arrays of tables until the end of the input.
         while !self.end() {
             let (k, v) = self.parse_table()?;
+            let v = match v {
+                Item::Table { is_aot_elem, .. } if is_aot_elem => {
+                    // This is just the first table in an AoT. Parse the rest of the array
+                    // along with it.
+                    self.parse_aot(v, k.key)?
+                },
+                _ => v
+            };
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
         Ok(TOMLDocument(body))
@@ -151,10 +189,10 @@ impl<'a> Parser<'a> {
     pub fn parse_item(&mut self) -> Result<Option<(Option<Key<'a>>, Item<'a>)>> {
         // Mark start of whitespace
         self.mark();
+        let saved_idx = self.save_idx();
         loop {
             match self.current {
                 // Found a newline; Return all whitespace found up to this point.
-                // TODO: merge consecutive WS
                 '\n' => {
                     self.inc(); // TODO: eof
                     return Ok(Some((None, Item::WS(self.extract()))));
@@ -185,7 +223,7 @@ impl<'a> Parser<'a> {
                 // Return to beginning of whitespace so it gets included
                 // as indentation for the KV about to be parsed.
                 _ => {
-                    self.idx = self.marker;
+                    self.restore_idx(saved_idx);
                     let (key, value) = self.parse_key_value(true)?;
                     return Ok(Some((key, value)));
                 }
@@ -228,7 +266,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        while self.inc() && self.current.is_spaces() {}
+        while self.current.is_spaces() && self.inc() {}
         if self.current == '\r' {
             self.inc();
         }
@@ -281,7 +319,7 @@ impl<'a> Parser<'a> {
             '"' => self.parse_basic_string(),
             '\'' => self.parse_literal_string(),
             // Boolean: true
-            't' if &self.src[self.idx..self.idx + 4] == "true" => {
+            't' if self.src[self.idx..].starts_with("true") => {
                 self.inc();
                 self.inc();
                 self.inc();
@@ -293,7 +331,7 @@ impl<'a> Parser<'a> {
                 })
             }
             // Boolean: False
-            'f' if &self.src[self.idx..self.idx + 5] == "false" => {
+            'f' if self.src[self.idx..].starts_with("false") => {
                 self.inc();
                 self.inc();
                 self.inc();
@@ -552,9 +590,7 @@ impl<'a> Parser<'a> {
     /// as well as whether it is part of an AoT.
     fn peek_table(&mut self) -> Result<(isAOT, &'a str)> {
         // Save initial state
-        let chars = self.chars.clone();
-        let idx = self.idx;
-        let current = self.current;
+        let idx = self.save_idx();
         let marker = self.marker;
 
         // FIXME: May need changing to allow leading indentation
@@ -579,9 +615,7 @@ impl<'a> Parser<'a> {
         let table_name = self.extract();
 
         // Restore initial state
-        self.chars = chars;
-        self.idx = idx;
-        self.current = current;
+        self.restore_idx(idx);
         self.marker = marker;
 
         Ok((is_AOT, table_name))
@@ -624,7 +658,9 @@ impl<'a> Parser<'a> {
         let mut values = Container::new();
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
-                values.append(key, item)?;
+                if !self.merge_ws(&item, &mut values) {
+                    values.append(key, item)?;
+                }
             } else {
                 if self.current == '[' {
                     let (_, name_next) = self.peek_table()?;
@@ -634,7 +670,7 @@ impl<'a> Parser<'a> {
                         values.append(key_next, table_next)?;
                     } else {
                         let table = Item::Table {
-                            is_array: is_aot,
+                            is_aot_elem: is_aot,
                             val: values.clone(),
                             meta: Trivia {
                                 indent: indent,
@@ -661,7 +697,7 @@ impl<'a> Parser<'a> {
         // CLEANUP: undecided variant
         if result.is_integer() {
             result = Item::Table {
-                is_array: is_aot,
+                is_aot_elem: is_aot,
                 val: values.clone(),
                 meta: Trivia {
                     indent: indent,
@@ -704,5 +740,17 @@ mod tests {
         let invalid_floats = vec!["00.1", "_1.0", "1.0_", "1_.0"];
         invalid_ints.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
         invalid_floats.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
+    }
+
+    #[test]
+    fn issue41() {
+        let text = ::std::str::from_utf8(b"\'\'fb\'\xee\x9d\xbd").unwrap();
+        let _ = Parser::new(text).parse();
+    }
+
+    #[test]
+    fn issue42() {
+        let text = ::std::str::from_utf8(b"\'\nv\'f%\nb").unwrap();
+        let _ = Parser::new(text).parse();
     }
 }

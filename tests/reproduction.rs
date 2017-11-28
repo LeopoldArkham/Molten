@@ -1,8 +1,6 @@
-#![feature(proc_macro)]
 #![allow(non_snake_case)]
 
 extern crate Molten;
-extern crate test_case_derive;
 #[macro_use]
 extern crate pretty_assertions;
 
@@ -12,27 +10,43 @@ use std::path::Path;
 use std::fs::File;
 use std::fmt::Display;
 
-use test_case_derive::test_case;
-
 // To add a test case:
 // 1) Create reference target toml file in /reproduction.
-// 2) Add a matching test_case attribute to the reproduce() function below.
+// 2) Add a matching test_case macro invocation to the list below.
 
-#[test_case("tests/reproduction/full.toml" :: "Full")]
-#[test_case("tests/reproduction/integers.toml" :: "Integers")]
-#[test_case("tests/reproduction/floats.toml" :: "Floats")]
-#[test_case("tests/reproduction/bools.toml" :: "Bools")]
-#[test_case("tests/reproduction/arrays.toml" :: "Arrays")]
-#[test_case("tests/reproduction/comments.toml" :: "Comments")]
-#[test_case("tests/reproduction/inline_tables.toml" :: "Inline Tables")]
-#[test_case("tests/reproduction/strings.toml" :: "Strings")]
-#[test_case("tests/reproduction/tables.toml" :: "Tables")]
-#[test_case("tests/reproduction/AoTs.toml" :: "aot's")]
-#[test_case("tests/reproduction/empty.toml" :: "Empty")]
-#[test_case("tests/reproduction/whitespace.toml" :: "Whitespace")]
-#[test_case("tests/reproduction/AoT_simple.toml" :: "AoT - Simple")]
-#[test_case("tests/reproduction/quoted_keys.toml" :: "Quoted Keys")]
-#[test_case("tests/reproduction/kv_sep.toml" :: "Kv Separators")]
+
+/// Defines a test case for the `reproduction` test module. This macro takes
+/// two arguments:
+///
+/// 1. `$path`: A relative path from the Cargo package's root directory to the TOML file
+///    that should be parsed, and
+/// 2. `$test_name`: An identifier that will be used as the test's name. Internally, it
+///    becomes the name of the test function.
+macro_rules! test_case {
+    ($path:expr; $test_name:ident) => {
+        #[test]
+        fn $test_name() {
+            reproduce($path);
+        }
+    };
+}
+
+test_case!("tests/reproduction/full.toml"; Full);
+test_case!("tests/reproduction/integers.toml"; Integers);
+test_case!("tests/reproduction/floats.toml"; Floats);
+test_case!("tests/reproduction/bools.toml"; Bools);
+test_case!("tests/reproduction/arrays.toml"; Arrays);
+test_case!("tests/reproduction/comments.toml"; Comments);
+test_case!("tests/reproduction/inline_tables.toml"; Inline_Tables);
+test_case!("tests/reproduction/strings.toml"; Strings);
+test_case!("tests/reproduction/tables.toml"; Tables);
+test_case!("tests/reproduction/AoTs.toml"; AoTs);
+test_case!("tests/reproduction/empty.toml"; Empty);
+test_case!("tests/reproduction/whitespace.toml"; Whitespace);
+test_case!("tests/reproduction/AoT_simple.toml"; AoT_Simple);
+test_case!("tests/reproduction/quoted_keys.toml"; Quoted_Keys);
+test_case!("tests/reproduction/kv_sep.toml"; Kv_Separators);
+
 /// This tests the parser's correctness by parsing each of the
 /// above files and attempting to reproduce them from the parsed structure.
 /// Any difference between original and reproduction is a bug.
