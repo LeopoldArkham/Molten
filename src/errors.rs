@@ -42,7 +42,7 @@ error_chain! {
             display("Invalid character '{}' in string", ch) // XXX escaping
         }
 
-        // todo: parametrize
+        /// todo: parametrize
         APIWrongItem {
             description("Function not implemented for this Item variant.")
         }
@@ -54,6 +54,12 @@ error_chain! {
             This is a bug.\n
             Please open an issue citing this message at
             https://github.com/LeopoldArkham/Molten", msg)
+        }
+
+        /// A non-existent key was used
+        NonExistentKey(key: String) {
+            description("The requested key does not exist in this container.")
+            display("Key \"{}\"does not exist.", key)
         }
     }
 }

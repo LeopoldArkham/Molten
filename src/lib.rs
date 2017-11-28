@@ -68,6 +68,7 @@ pub mod items;
 pub use tomldoc::TOMLDocument;
 #[doc(inline)]
 pub use items::*;
+pub use api::*;
 
 // Only public as a hack for testing;
 // Should be private and handled via API
@@ -82,7 +83,7 @@ pub use container::Container;
 #[doc(hide)]
 #[macro_export]
 macro_rules! nl {
-    () => {"\n"};
+    () => {"\r\n"};
 }
 
 /// Line terminator constant.

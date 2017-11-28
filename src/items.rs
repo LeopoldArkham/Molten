@@ -3,11 +3,11 @@ use container::Container;
 
 /// Type of TOML string.
 ///
-/// There are four ways to express strings: basic, multi-line basic, 
-/// literal, and multi-line literal. All strings must contain only valid UTF-8 
+/// There are four ways to express strings: basic, multi-line basic,
+/// literal, and multi-line literal. All strings must contain only valid UTF-8
 /// characters.
 ///
-/// **Basic strings** are surrounded by quotation marks. Any Unicode 
+/// **Basic strings** are surrounded by quotation marks. Any Unicode
 /// character may be used except those that must be escaped: quotation mark,
 /// backslash, and the control characters (U+0000 to U+001F).
 ///
@@ -16,7 +16,7 @@ use container::Container;
 /// ```
 ///
 /// For convenience, common characters have a compact escape sequence.
-/// 
+///
 /// | Escape       | Name            | Unicode Replacement |
 /// |--------------|-----------------|---------------------|
 /// | \b           | backspace       | (U+0008)            |
@@ -31,11 +31,11 @@ use container::Container;
 ///
 /// Any Unicode character may be escaped with the `\uXXXX` or `\UXXXXXXXX`
 /// forms. The escape codes must be valid Unicode scalar values.
-/// 
-/// All other escape sequences not listed above are reserved and, if used, 
+///
+/// All other escape sequences not listed above are reserved and, if used,
 /// should produce an error.
 ///
-/// **Multi-line basic** strings are surrounded by three quotation marks on 
+/// **Multi-line basic** strings are surrounded by three quotation marks on
 /// each side and allow newlines. A newline immediately following the opening
 /// delimiter will be trimmed. All other whitespace and newline characters
 /// remain intact.
@@ -44,7 +44,7 @@ use container::Container;
 /// they must appear on a single line. Literal strings do not allow escaping
 /// of characters within the string.
 ///
-/// **Multi-line literal** strings are surrounded by three single-quotes on 
+/// **Multi-line literal** strings are surrounded by three single-quotes on
 /// each side and allow newlines. A newline immediately following the opening
 /// delimiter will be trimmed. All other whitespace and newline characters
 /// remain intact. No escaping is allowed within the string.
@@ -178,11 +178,11 @@ pub enum Item<'a> {
         raw: &'a str,
     },
     /// A bool literal.
-    Bool { 
+    Bool {
         /// The value of the boolean.
-        val: bool, 
+        val: bool,
         /// Trivia data for the boolean.
-        meta: Trivia<'a> 
+        meta: Trivia<'a>,
     },
     /// A datetime literal.
     DateTime {
@@ -229,6 +229,7 @@ pub enum Item<'a> {
     },
     /// An AoT literal.
     AoT(Vec<Item<'a>>),
+    None,
 }
 
 impl<'a> Item<'a> {
@@ -247,6 +248,7 @@ impl<'a> Item<'a> {
             InlineTable { .. } => 8,
             Str { .. } => 9,
             AoT(_) => 10,
+            None => 11,
         }
     }
 
@@ -327,6 +329,7 @@ impl<'a> Item<'a> {
                 }
                 b
             }
+            None => "".to_string()
         }
     }
 
@@ -334,7 +337,7 @@ impl<'a> Item<'a> {
     pub fn meta(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT(_) => {
+            WS(_) | Comment(_) | AoT(_) | None => {
                 println!("{:?}", self);
                 panic!("Called meta on non-value Item variant");
             }
@@ -353,7 +356,7 @@ impl<'a> Item<'a> {
     pub fn meta_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT(_) => {
+            WS(_) | Comment(_) | AoT(_) | None => {
                 println!("{:?}", self);
                 panic!("Called meta on non-value Item variant");
             }
@@ -365,16 +368,6 @@ impl<'a> Item<'a> {
             Table { ref mut meta, .. } |
             InlineTable { ref mut meta, .. } |
             Str { ref mut meta, .. } => meta,
-        }
-    }
-
-    /// Hack for testing purposes in reconstruction.rs
-    /// Really belongs in the API
-    pub fn integer(raw: &'a str) -> Item<'a> {
-        Item::Integer {
-            val: raw.parse::<i64>().unwrap(),
-            meta: Trivia::empty(),
-            raw: raw,
         }
     }
 }

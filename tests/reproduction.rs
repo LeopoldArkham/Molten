@@ -53,8 +53,7 @@ test_case!("tests/reproduction/kv_sep.toml"; Kv_Separators);
 fn reproduce<P: AsRef<Path> + Display>(path: P) {
     let mut input = String::new();
 
-    let mut f = File::open(&path)
-        .expect(&format!("Error opening: {}", path));
+    let mut f = File::open(&path).expect(&format!("Error opening: {}", path));
     f.read_to_string(&mut input).expect("Error reading file:");
 
     let mut parser = Molten::parser::Parser::new(&input);

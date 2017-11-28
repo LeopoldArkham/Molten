@@ -107,7 +107,7 @@ impl<'a> Parser<'a> {
         let mut cur = 0;
         for (i, line) in self.src.lines().enumerate() {
             if cur + line.len() + 1 > offset {
-                return (i, offset - cur)
+                return (i, offset - cur);
             }
             cur += line.len() + 1;
         }
@@ -170,8 +170,8 @@ impl<'a> Parser<'a> {
                     // This is just the first table in an AoT. Parse the rest of the array
                     // along with it.
                     self.parse_aot(v, k.key)?
-                },
-                _ => v
+                }
+                _ => v,
             };
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
@@ -429,21 +429,26 @@ impl<'a> Parser<'a> {
 
     fn parse_number(raw: &'a str, trivia: Trivia<'a>) -> Option<Item<'a>> {
         // Leading zeros are not allowed
-        if raw.len() > 1 && raw.starts_with('0') && !raw.starts_with("0."){
+        if raw.len() > 1 && raw.starts_with('0') && !raw.starts_with("0.") {
             return None;
         }
 
         // Underscores should be surrounded by digits
-        let (valid, last) = raw.chars()
-            .fold((true, None), |(valid, prev):(bool, Option<char>), c: char| {
-                if !valid { return (false, None); }
-                (match (prev, c) {
+        let (valid, last) = raw.chars().fold((true, None), |(valid, prev): (bool,
+                         Option<char>),
+         c: char| {
+            if !valid {
+                return (false, None);
+            }
+            (
+                match (prev, c) {
                     (None, '_') => false,
                     (Some(x), '_') | (Some('_'), x) => x.is_digit(10),
-                    _ => true
-                }
-                , Some(c))
-            });
+                    _ => true,
+                },
+                Some(c),
+            )
+        });
 
         if !valid || last == Some('_') {
             return None;
@@ -654,7 +659,7 @@ impl<'a> Parser<'a> {
         let (cws, comment, trail) = self.parse_comment_trail();
 
         // CLEANUP: Total hack, add undecided variant
-        let mut result = Item::integer("999");
+        let mut result = Item::None;
         let mut values = Container::new();
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
@@ -679,7 +684,9 @@ impl<'a> Parser<'a> {
                                 trail: trail,
                             },
                         };
-                        result = if is_aot && (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap()) {
+                        result = if is_aot &&
+                            (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap())
+                        {
                             self.parse_aot(table, name)?
                         } else {
                             table
@@ -688,14 +695,13 @@ impl<'a> Parser<'a> {
                     break;
                 } else {
                     return Err(self.error(ErrorKind::InternalParserError(
-                        "parse_item() returned None on a non-bracket character."
-                            .into(),
-                    )))
+                        "parse_item() returned None on a non-bracket character.".into(),
+                    )));
                 }
             }
         }
         // CLEANUP: undecided variant
-        if result.is_integer() {
+        if result.is_none() {
             result = Item::Table {
                 is_aot_elem: is_aot,
                 val: values.clone(),
@@ -738,8 +744,12 @@ mod tests {
     fn invalid_numbers() {
         let invalid_ints = vec!["01", "_1", "1_", "1__2"];
         let invalid_floats = vec!["00.1", "_1.0", "1.0_", "1_.0"];
-        invalid_ints.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
-        invalid_floats.iter().for_each(|s| {assert_eq!(None, Parser::parse_number(s, Trivia::default()))});
+        invalid_ints.iter().for_each(|s| {
+            assert_eq!(None, Parser::parse_number(s, Trivia::default()))
+        });
+        invalid_floats.iter().for_each(|s| {
+            assert_eq!(None, Parser::parse_number(s, Trivia::default()))
+        });
     }
 
     #[test]

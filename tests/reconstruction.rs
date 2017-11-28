@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 #[macro_use]
 extern crate Molten;
 #[macro_use]
@@ -9,7 +11,8 @@ use std::path::Path;
 use std::fs::File;
 use std::fmt::Display;
 
-use Molten::{TOMLDocument, Container};
+// @cleanup: integer scope
+use Molten::{TOMLDocument, Container, integer};
 use Molten::items::*;
 use Molten::NL;
 
@@ -60,7 +63,10 @@ mod constructors {
         let trivia = Trivia::empty();
 
         let bool_k = Key::new("bool");
-        let bool_v = Item::Bool {val: true, meta: trivia.clone()};
+        let bool_v = Item::Bool {
+            val: true,
+            meta: trivia.clone(),
+        };
         let _ = container.append(bool_k, bool_v);
 
         let string_k = Key::new("string");
@@ -68,12 +74,12 @@ mod constructors {
             t: StringType::SLB,
             val: "Hello!",
             original: "Hello!",
-            meta: trivia.clone()
+            meta: trivia.clone(),
         };
         let _ = container.append(string_k, string_v);
 
         let int_k = Key::new("int");
-        let int_v = Item::integer("42");
+        let int_v = integer("42");
         let _ = container.append(int_k, int_v);
 
         TOMLDocument(container)
@@ -88,12 +94,12 @@ mod constructors {
         let first_1 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = Item::integer("1");
+            let id_v = integer("1");
 
             let _ = _container.append(id_k, id_v);
 
             let nested_id_k = Key::new("nested_id");
-            let nested_id_v = Item::integer("12");
+            let nested_id_v = integer("12");
 
             let mut nested_container = Container::new();
             let _ = nested_container.append(nested_id_k, nested_id_v);
@@ -101,7 +107,7 @@ mod constructors {
 
             let nested_k = Key::new("first.nested");
             let nested_v = Item::Table {
-            is_aot_elem: false,
+                is_aot_elem: false,
                 val: nested_container,
                 meta: trivia.clone(),
             };
@@ -109,7 +115,7 @@ mod constructors {
             let _ = _container.append(nested_k, nested_v);
 
             Item::Table {
-            is_aot_elem: true,
+                is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -118,12 +124,12 @@ mod constructors {
         let first_2 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = Item::integer("2");
+            let id_v = integer("2");
             let _ = _container.append(id_k, id_v);
             let _ = _container.append(None, Item::WS(::NL));
 
             Item::Table {
-            is_aot_elem: true,
+                is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -132,23 +138,26 @@ mod constructors {
         let first_3 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = Item::integer("3");
+            let id_v = integer("3");
             let _ = _container.append(id_k, id_v);
 
             let nested_id_k = Key::new("nested_id");
-            let nested_id_v = Item::integer("31");
+            let nested_id_v = integer("31");
 
             let mut _payload = Vec::new();
 
             let boolean_k = Key::new("bool");
-            let boolean_v = Item::Bool {val: true, meta: trivia.clone()};
+            let boolean_v = Item::Bool {
+                val: true,
+                meta: trivia.clone(),
+            };
             let mut table_container = Container::new();
             let _ = table_container.append(boolean_k, boolean_v);
             let _ = table_container.append(None, Item::WS(::NL));
 
 
             let table = Item::Table {
-            is_aot_elem: true,
+                is_aot_elem: true,
                 val: table_container,
                 meta: trivia.clone(),
             };
@@ -164,7 +173,7 @@ mod constructors {
 
             let nested_k = Key::new("first.nested");
             let nested_v = Item::Table {
-            is_aot_elem: false,
+                is_aot_elem: false,
                 val: nested_container,
                 meta: trivia.clone(),
             };
@@ -172,7 +181,7 @@ mod constructors {
             let _ = _container.append(nested_k, nested_v);
 
             Item::Table {
-            is_aot_elem: true,
+                is_aot_elem: true,
                 val: _container,
                 meta: trivia.clone(),
             }
@@ -187,13 +196,13 @@ mod constructors {
 
         let mut payload_second = Vec::new();
         let table = Item::Table {
-        is_aot_elem: true,
+            is_aot_elem: true,
             val: Container::new(),
             meta: trivia.clone(),
         };
         payload_second.push(table.clone());
         payload_second.push(table.clone());
-        payload_second.push(table.clone());    
+        payload_second.push(table.clone());
 
         let second_k = Key::new("second");
         let second_v = Item::AoT(payload_second);
@@ -201,7 +210,7 @@ mod constructors {
 
         let _ = container.append(first_k, first_v);
         let _ = container.append(second_k, second_v);
-        
+
         TOMLDocument(container)
     }
 
@@ -209,11 +218,15 @@ mod constructors {
         let mut container = Container::new();
         let trivia = Trivia::empty();
         let item = Item::WS(concat!(
-            "           ", nl!(),
-            "\t", nl!(),
+            "           ",
             nl!(),
-            "    ", nl!(),
-            "  \t    ", nl!()
+            "\t",
+            nl!(),
+            nl!(),
+            "    ",
+            nl!(),
+            "  \t    ",
+            nl!()
         ));
         container.append(None, item).unwrap();
         TOMLDocument(container)
@@ -225,14 +238,22 @@ mod constructors {
         let mut trivia = Trivia::empty();
         trivia.trail = concat!("  ", nl!());
         let key = Key::new("bool");
-        let value = Item::Bool {val: true, meta: trivia};
+        let value = Item::Bool {
+            val: true,
+            meta: trivia,
+        };
         container.append(key, value).unwrap();
 
         let mut trivia = Trivia::empty();
         trivia.indent = "\t";
         trivia.trail = concat!("\t", nl!());
         let key = Key::new("string");
-        let value = Item::Str {t: StringType::SLB, val: "Hello!", original: "Hello!", meta: trivia};
+        let value = Item::Str {
+            t: StringType::SLB,
+            val: "Hello!",
+            original: "Hello!",
+            meta: trivia,
+        };
         container.append(key, value).unwrap();
 
         let trivia = Trivia::empty();
@@ -242,14 +263,18 @@ mod constructors {
         let mut trivia = Trivia::empty();
         trivia.indent = " ";
         let key = Key::new("int");
-        let value = Item::Integer {val: 42, meta: trivia, raw: "42"};
+        let value = Item::Integer {
+            val: 42,
+            meta: trivia,
+            raw: "42",
+        };
         container.append(key, value).unwrap();
 
         TOMLDocument(container)
     }
 }
 
-/// Constructs a copy of the reference document using the API and 
+/// Constructs a copy of the reference document using the API and
 /// compares the two `TOMLDocument` hierarchies.
 fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> TOMLDocument<'static>) {
     let mut reference = String::new();
@@ -264,10 +289,12 @@ fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> TOMLDocume
     let result = under_test();
     assert_eq!(reference, result.as_string());
     assert_eq!(parsed, result);
-    
+
     let mut original = File::create("parsed.txt").unwrap();
     let mut reconstructed = File::create("reconstructed.txt").unwrap();
 
     let _ = original.write(format!("{:#?}", parsed).as_bytes()).unwrap();
-    let _ = reconstructed.write(format!("{:#?}", under_test).as_bytes()).unwrap();
+    let _ = reconstructed
+        .write(format!("{:#?}", under_test).as_bytes())
+        .unwrap();
 }
