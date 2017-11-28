@@ -42,6 +42,11 @@ error_chain! {
             display("Invalid character '{}' in string", ch) // XXX escaping
         }
 
+        // todo: parametrize
+        APIWrongItem {
+            description("Function not implemented for this Item variant.")
+        }
+
         /// An error that indicates a bug in the parser.
         InternalParserError(msg: String) {
             description("Internal Parser Error")

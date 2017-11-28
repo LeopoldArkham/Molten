@@ -560,7 +560,7 @@ impl<'a> Parser<'a> {
         // FIXME: May need changing to allow leading indentation
         if self.current != '[' {
             return Err(self.error(ErrorKind::InternalParserError(
-                "Peek_table_name entered on non-bracket character".into(),
+                "Peek_table entered on non-bracket character".into(),
             )));
         }
 
@@ -622,9 +622,6 @@ impl<'a> Parser<'a> {
         // CLEANUP: Total hack, add undecided variant
         let mut result = Item::integer("999");
         let mut values = Container::new();
-        // CLEANUP: Wait for table API:
-        // Use table API to add kv's as they come so result is never
-        // uninitialized
         while !self.end() {
             if let Some((key, item)) = self.parse_item()? {
                 values.append(key, item)?;

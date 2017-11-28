@@ -20,7 +20,7 @@ impl<'a> Container<'a> {
     }
 
     /// Adds a (key, item) pair to the container.
-    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
+    pub(crate) fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
             // TODO: Fix AoT
