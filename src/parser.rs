@@ -416,7 +416,7 @@ impl<'a> Parser<'a> {
                 } else if let Ok(res) = ChronoDateTime::parse_from_rfc3339(raw) {
                     return Ok(Item::DateTime {
                         val: res,
-                        raw: raw, // XXX this was `clean`, why?
+                        raw: raw,
                         meta: trivia,
                     });
                 } else {
