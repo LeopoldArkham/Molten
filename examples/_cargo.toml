@@ -1,0 +1,8 @@
+[package]
+name = "my-awesome-lib"
+version = "0.1.0"
+authors = ["Me", "Myself", "I"]
+
+[dependencies]
+parse_imonious = "0.1.4"
+parse_ley = "1.0.0"

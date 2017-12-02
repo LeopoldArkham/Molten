@@ -1,5 +1,6 @@
 target/
 doc/
+examples/cargo_new.toml
 Cargo.lock
 *.rs.bk
 *.rs.fmt
