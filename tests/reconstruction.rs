@@ -13,6 +13,7 @@ use std::fmt::Display;
 
 // @cleanup: integer scope
 use Molten::{TOMLDocument, Container, integer};
+use Molten::errors::*;
 use Molten::items::*;
 use Molten::NL;
 
@@ -55,7 +56,7 @@ mod constructors {
 
     pub fn empty() -> Result<TOMLDocument<'static>> {
         let container = Container::new();
-        TOMLDocument(container)
+        Ok(TOMLDocument(container))
     }
 
     pub fn simple() -> Result<TOMLDocument<'static>> {
@@ -82,7 +83,7 @@ mod constructors {
         let int_v = integer("42")?;
         let _ = container.append(int_k, int_v);
 
-        TOMLDocument(container)
+        Ok(TOMLDocument(container))
     }
 
     pub fn AoTs() -> Result<TOMLDocument<'static>> {
@@ -211,12 +212,12 @@ mod constructors {
         let _ = container.append(first_k, first_v);
         let _ = container.append(second_k, second_v);
 
-        TOMLDocument(container)
+        Ok(TOMLDocument(container))
     }
 
     pub fn whitespace() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
-        let trivia = Trivia::empty();
+        let _trivia = Trivia::empty();
         let item = Item::WS(concat!(
             "           ",
             nl!(),
@@ -229,7 +230,7 @@ mod constructors {
             nl!()
         ));
         container.append(None, item)?;
-        TOMLDocument(container)
+        Ok(TOMLDocument(container))
     }
 
     pub fn indented() -> Result<TOMLDocument<'static>> {
@@ -256,7 +257,7 @@ mod constructors {
         };
         container.append(key, value).unwrap();
 
-        let trivia = Trivia::empty();
+        let _trivia = Trivia::empty();
         let value = Item::WS(concat!(nl!(), nl!()));
         container.append(None, value).unwrap();
 
@@ -270,13 +271,13 @@ mod constructors {
         };
         container.append(key, value).unwrap();
 
-        TOMLDocument(container)
+        Ok(TOMLDocument(container))
     }
 }
 
 /// Constructs a copy of the reference document using the API and
 /// compares the two `TOMLDocument` hierarchies.
-fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> TOMLDocument<'static>) {
+fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> Result<TOMLDocument<'static>>) {
     let mut reference = String::new();
     let mut f = File::open(&path).unwrap();
     f.read_to_string(&mut reference).unwrap();
@@ -286,7 +287,7 @@ fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> TOMLDocume
         parser.parse().unwrap()
     };
 
-    let result = under_test();
+    let result = under_test().unwrap();
     assert_eq!(reference, result.as_string());
     assert_eq!(parsed, result);
 

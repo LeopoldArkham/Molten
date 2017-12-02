@@ -57,7 +57,7 @@ extern crate chrono;
 extern crate error_chain;
 
 mod tomlchar;
-mod errors;
+pub mod errors;
 pub mod tomldoc;
 pub mod parser;
 pub mod api;
