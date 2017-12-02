@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 use tomldoc::TOMLDocument;
 use items::*;
 
@@ -13,6 +13,18 @@ impl<'a> Index<&'static str> for TOMLDocument<'a> {
         };
         let idx = self.0.map.get(&k).expect("Invalid key");
         &self.0.body[*idx].1
+    }
+}
+
+impl<'a> IndexMut<&'static str> for TOMLDocument<'a> {
+    fn index_mut(&mut self, name: &str) -> &mut Self::Output {
+        let k = Key {
+            t: KeyType::Bare,
+            sep: "",
+            key: name,
+        };
+        let idx = self.0.map.get(&k).expect("Invalid key");
+        &mut self.0.body[*idx].1
     }
 }
 

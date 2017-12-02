@@ -1,4 +1,13 @@
 error_chain! {
+
+    foreign_links {
+        ParseIntError(::std::num::ParseIntError);
+        ParseFloatError(::std::num::ParseFloatError);
+        ParseBoolError(::std::str::ParseBoolError);
+        ParseDateTimeError(::chrono::ParseError);
+        ReadFileError(::std::io::Error);
+    }
+
     errors {
 
         /// This error occurs when the parser encounters a syntax error
@@ -60,6 +69,11 @@ error_chain! {
         NonExistentKey(key: String) {
             description("The requested key does not exist in this container.")
             display("Key \"{}\"does not exist.", key)
+        }
+
+        ///
+        ParseStringError {
+            description("Input does not contain a valid string.")
         }
     }
 }

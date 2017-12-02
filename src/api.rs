@@ -2,13 +2,47 @@ use items::*;
 use container::*;
 use errors::*;
 
+use chrono::DateTime as ChronoDateTime;
 
-pub fn integer(raw: &'static str) -> Item<'static> {
-    Item::Integer {
-        val: raw.parse::<i64>().unwrap(),
+// @todo: passing reference because cow not implemented.
+
+pub fn integer(raw: &'static str) -> Result<Item<'static>> {
+    Ok(Item::Integer {
+        val: raw.parse::<i64>()?,
         meta: Trivia::empty(),
         raw: raw,
-    }
+    })
+}
+
+pub fn float(raw: &'static str) -> Result<Item<'static>> {
+    Ok(Item::Float {
+        val: raw.parse::<f64>()?,
+        meta: Trivia::empty(),
+        raw: raw,
+    })
+}
+
+pub fn bool(raw: &'static str) -> Result<Item<'static>> {
+    Ok(Item::Bool {
+        val: raw.parse::<bool>()?,
+        meta: Trivia::empty(),
+    })
+}
+
+pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
+    Ok(Item::DateTime {
+        val: ChronoDateTime::parse_from_rfc3339(raw)?,
+        meta: Trivia::empty(),
+        raw: raw,
+    })
+}
+
+pub fn array<'a>() -> Result<Item<'a>> {
+    Ok(Item::Array {
+        // @todo: Average length of toml arrays?
+        val: Vec::with_capacity(10),
+        meta: Trivia::empty(),
+    })
 }
 
 pub fn table<'a>() -> Item<'a> {
@@ -19,7 +53,45 @@ pub fn table<'a>() -> Item<'a> {
     }
 }
 
-/// Addition/removal
+pub fn inline_table<'a>() -> Item<'a> {
+    Item::InlineTable {
+        val: Container::new(),
+        meta: Trivia::empty(),
+    }
+}
+
+pub fn aot<'a>() -> Item<'a> {
+    Item::AoT(Vec::with_capacity(5))
+}
+
+pub fn value<'a>(src: &'a str) -> Result<Item<'a>> {
+    let mut parser = ::parser::Parser::new(src);
+    parser.parse_value()
+}
+
+pub fn key_value<'a>(src: &'a str) -> Result<(Key<'a>, Item<'a>)> {
+    let mut parser = ::parser::Parser::new(src);
+    parser.parse_key_value(true)
+}
+
+// @cleanup: How should the string be passed?
+// - With delimiters? Ugly and requires raw strings or escaping
+// - Without delimiters? Nicer but requires inspecting the string to
+// determine its type.
+// Either way this puts "soft" requirements on the API that I don't like,
+// but how to typesystem this instead?
+pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
+    let mut parser = ::parser::Parser::new(raw.as_ref());
+    let value = parser.parse_value()?;
+
+    if !value.is_string() {
+        bail!(ErrorKind::ParseStringError);
+    }
+
+    Ok(value)
+}
+
+/// Append - Remove
 impl<'a> Item<'a> {
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         use Item::*;

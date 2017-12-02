@@ -47,9 +47,9 @@ assert_eq!(toml, parsed.as_string());
 ```
 */
 
+#![recursion_limit="128"]
 // #![warn(missing_docs)]
 #![allow(non_snake_case)]
-//#[allow(unused_imports)]
 
 extern crate pretty_assertions;
 extern crate chrono;

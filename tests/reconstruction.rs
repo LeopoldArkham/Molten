@@ -53,12 +53,12 @@ test_case!("tests/reconstruction/indented.toml", indented; Indented);
 mod constructors {
     use super::*;
 
-    pub fn empty() -> TOMLDocument<'static> {
+    pub fn empty() -> Result<TOMLDocument<'static>> {
         let container = Container::new();
         TOMLDocument(container)
     }
 
-    pub fn simple() -> TOMLDocument<'static> {
+    pub fn simple() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
         let trivia = Trivia::empty();
 
@@ -79,13 +79,13 @@ mod constructors {
         let _ = container.append(string_k, string_v);
 
         let int_k = Key::new("int");
-        let int_v = integer("42");
+        let int_v = integer("42")?;
         let _ = container.append(int_k, int_v);
 
         TOMLDocument(container)
     }
 
-    pub fn AoTs() -> TOMLDocument<'static> {
+    pub fn AoTs() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
         let trivia = Trivia::empty();
 
@@ -94,12 +94,12 @@ mod constructors {
         let first_1 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = integer("1");
+            let id_v = integer("1")?;
 
             let _ = _container.append(id_k, id_v);
 
             let nested_id_k = Key::new("nested_id");
-            let nested_id_v = integer("12");
+            let nested_id_v = integer("12")?;
 
             let mut nested_container = Container::new();
             let _ = nested_container.append(nested_id_k, nested_id_v);
@@ -124,7 +124,7 @@ mod constructors {
         let first_2 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = integer("2");
+            let id_v = integer("2")?;
             let _ = _container.append(id_k, id_v);
             let _ = _container.append(None, Item::WS(::NL));
 
@@ -138,11 +138,11 @@ mod constructors {
         let first_3 = {
             let mut _container = Container::new();
             let id_k = Key::new("id");
-            let id_v = integer("3");
+            let id_v = integer("3")?;
             let _ = _container.append(id_k, id_v);
 
             let nested_id_k = Key::new("nested_id");
-            let nested_id_v = integer("31");
+            let nested_id_v = integer("31")?;
 
             let mut _payload = Vec::new();
 
@@ -214,7 +214,7 @@ mod constructors {
         TOMLDocument(container)
     }
 
-    pub fn whitespace() -> TOMLDocument<'static> {
+    pub fn whitespace() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
         let trivia = Trivia::empty();
         let item = Item::WS(concat!(
@@ -228,11 +228,11 @@ mod constructors {
             "  \t    ",
             nl!()
         ));
-        container.append(None, item).unwrap();
+        container.append(None, item)?;
         TOMLDocument(container)
     }
 
-    pub fn indented() -> TOMLDocument<'static> {
+    pub fn indented() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
 
         let mut trivia = Trivia::empty();

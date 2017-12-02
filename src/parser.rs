@@ -225,7 +225,7 @@ impl<'a> Parser<'a> {
                 _ => {
                     self.restore_idx(saved_idx);
                     let (key, value) = self.parse_key_value(true)?;
-                    return Ok(Some((key, value)));
+                    return Ok(Some((Some(key), value)));
                 }
             }
         }
@@ -283,7 +283,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parses and returns a key/value pair.
-    pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Option<Key<'a>>, Item<'a>)> {
+    pub fn parse_key_value(&mut self, parse_comment: bool) -> Result<(Key<'a>, Item<'a>)> {
         // Leading indent.
         self.mark();
         while self.current.is_spaces() && self.inc() {}
@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
         key.sep = self.extract_exact();
 
         // Value.
-        let mut val = self.parse_val()?;
+        let mut val = self.parse_value()?;
 
         // Comment
         if parse_comment {
@@ -308,11 +308,11 @@ impl<'a> Parser<'a> {
         }
         val.meta_mut().indent = indent;
 
-        Ok((Some(key), val))
+        Ok((key, val))
     }
 
     /// Attempts to parse a value at the current position.
-    pub fn parse_val(&mut self) -> Result<Item<'a>> {
+    pub fn parse_value(&mut self) -> Result<Item<'a>> {
         self.mark();
         let trivia: Trivia = Default::default();
         match self.current {
@@ -369,7 +369,7 @@ impl<'a> Parser<'a> {
                                 trail: trail,
                             })
                         }
-                        _ => self.parse_val()?,
+                        _ => self.parse_value()?,
                     };
                     elems.push(next);
                 }
@@ -427,6 +427,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Attempts to parse a string into an `i64` or an `f64`.
+    /// Returns `None` if the parsing fails.
     fn parse_number(raw: &'a str, trivia: Trivia<'a>) -> Option<Item<'a>> {
         // Leading zeros are not allowed
         if raw.len() > 1 && raw.starts_with('0') && !raw.starts_with("0.") {
