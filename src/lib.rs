@@ -82,9 +82,16 @@ pub use container::Container;
 // ::NL can continue to be used in other cases, but it will take its value from here.
 #[doc(hide)]
 #[macro_export]
+#[cfg(windows)]
 macro_rules! nl {
     () => {"\r\n"};
 }
 
-/// Line terminator constant.
-pub const NL: &str = nl!();
+#[doc(hide)]
+#[macro_export]
+#[cfg(not(windows))]
+macro_rules! nl {
+    () => {"\n"};
+}
+
+pub const NL: &'static str = nl!();
