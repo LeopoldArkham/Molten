@@ -60,6 +60,18 @@ pub enum StringType {
     MLL,
 }
 
+impl StringType {
+    /// Return the delimiter used by the given `StringType'.
+    pub fn delimiter(k: &StringType) -> &'static str {
+        match *k {
+            StringType::SLB => "\"",
+            StringType::MLB => "\"\"\"",
+            StringType::SLL => "'",
+            StringType::MLL => "'''",
+        }
+    }
+}
+
 /// Trivia information (aka metadata).
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Trivia<'a> {
@@ -75,7 +87,7 @@ pub struct Trivia<'a> {
 
 impl<'a> Trivia<'a> {
     /// Creates an empty Trivia with windows-style newline.
-    pub fn empty() -> Trivia<'a> {
+    pub fn new() -> Trivia<'a> {
         Trivia {
             indent: "",
             comment_ws: "",
@@ -85,7 +97,7 @@ impl<'a> Trivia<'a> {
     }
 }
 
-/// The type of a key.
+/// The type of a `Key`.
 /// Keys can be bare or follow the same rules as either string type.
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {
@@ -117,6 +129,15 @@ impl<'a> Key<'a> {
             key: k,
         }
     }
+
+    /// Return the delimiter used by the given `KeyType'.
+    pub fn delimiter(&self) -> &'static str {
+        match self.t {
+            KeyType::Bare => "",
+            KeyType::Basic => "\"",
+            KeyType::Literal => "'",
+        }
+    }
 }
 
 impl<'a> Eq for Key<'a> {}
@@ -135,20 +156,14 @@ impl<'a> ::std::hash::Hash for Key<'a> {
 
 impl<'a> ::std::fmt::Debug for Key<'a> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{}", self.key)
+        write!(f, "{}{}{}", self.delimiter(), self.key, &self.delimiter())
     }
 }
 
 impl<'a> Key<'a> {
     /// Returns the string represenation of a `Key`.
     pub fn as_string(&self) -> String {
-        let quote = match self.t {
-            KeyType::Bare => "",
-            KeyType::Basic => "\"",
-            KeyType::Literal => "'",
-        };
-
-        format!("{}{}{}", quote, self.key, quote)
+        format!("{}{}{}", self.delimiter(), self.key, self.delimiter())
     }
 }
 
@@ -164,7 +179,7 @@ pub enum Item<'a> {
         /// The value of the integer.
         val: i64,
         /// Trivia for the integer.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
         /// The original representation of the integer value.
         raw: &'a str,
     },
@@ -173,7 +188,7 @@ pub enum Item<'a> {
         /// The value of the float.
         val: f64,
         /// Trivia data for the Float.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
         /// The original string representation of the value.
         raw: &'a str,
     },
@@ -182,7 +197,7 @@ pub enum Item<'a> {
         /// The value of the boolean.
         val: bool,
         /// Trivia data for the boolean.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// A datetime literal.
     DateTime {
@@ -191,14 +206,14 @@ pub enum Item<'a> {
         /// The original string representation of the value.
         raw: &'a str,
         /// Trivia data for the datetime value.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// An array literal.
     Array {
         /// The contents of the array.
         val: Vec<Item<'a>>,
         /// Trivia data for the array.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// A table literal.
     Table {
@@ -207,14 +222,14 @@ pub enum Item<'a> {
         /// The contents of the table.
         val: Container<'a>,
         /// Triva data for the table.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// An inline table literal.
     InlineTable {
         /// The contents of the table.
         val: Container<'a>,
         /// Triva data for the table.
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// A string literal.
     Str {
@@ -225,7 +240,7 @@ pub enum Item<'a> {
         /// Original string value, including any decoration
         original: &'a str,
         /// Trivia data for the string
-        meta: Trivia<'a>,
+        trivia: Trivia<'a>,
     },
     /// An AoT literal.
     AoT(Vec<Item<'a>>),
@@ -297,11 +312,11 @@ impl<'a> Item<'a> {
                 for (i, &(ref k, ref v)) in val.body.iter().enumerate() {
                     buf.push_str(&format!(
                         "{}{} = {}{}{}",
-                        v.meta().indent,
+                        v.trivia().indent,
                         k.clone().unwrap().as_string(),
                         v.as_string(),
-                        v.meta().comment,
-                        v.meta().trail
+                        v.trivia().comment,
+                        v.trivia().trail
                     ));
                     if i != val.body.len() - 1 {
                         buf.push_str(", ");
@@ -315,12 +330,7 @@ impl<'a> Item<'a> {
                 ref original,
                 ..
             } => {
-                match *t {
-                    StringType::MLB => format!(r#""""{}""""#, original),
-                    StringType::SLB => format!(r#""{}""#, original),
-                    StringType::SLL => format!(r#"'{}'"#, original),
-                    StringType::MLL => format!(r#"'''{}'''"#, original),
-                }
+                format!("{}{}{}", StringType::delimiter(t), original, StringType::delimiter(t))
             }
             AoT(ref body) => {
                 let mut b = String::new();
@@ -329,45 +339,70 @@ impl<'a> Item<'a> {
                 }
                 b
             }
-            None => "".to_string()
+            None => "".to_string(),
         }
     }
 
     /// Returns a `Trivia`.
-    pub fn meta(&self) -> &Trivia<'a> {
+    pub fn trivia(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) | None => {
                 println!("{:?}", self);
-                panic!("Called meta on non-value Item variant");
+                panic!("Called trivia on non-value Item variant");
             }
-            Integer { ref meta, .. } |
-            Float { ref meta, .. } |
-            Bool { ref meta, .. } |
-            DateTime { ref meta, .. } |
-            Array { ref meta, .. } |
-            Table { ref meta, .. } |
-            InlineTable { ref meta, .. } |
-            Str { ref meta, .. } => meta,
+            Integer { ref trivia, .. } |
+            Float { ref trivia, .. } |
+            Bool { ref trivia, .. } |
+            DateTime { ref trivia, .. } |
+            Array { ref trivia, .. } |
+            Table { ref trivia, .. } |
+            InlineTable { ref trivia, .. } |
+            Str { ref trivia, .. } => trivia,
         }
     }
 
     /// Returns a mutable `Trivia`.
-    pub fn meta_mut(&mut self) -> &mut Trivia<'a> {
+    pub fn trivia_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {
             WS(_) | Comment(_) | AoT(_) | None => {
                 println!("{:?}", self);
-                panic!("Called meta on non-value Item variant");
+                panic!("Called trivia on non-value Item variant");
             }
-            Integer { ref mut meta, .. } |
-            Float { ref mut meta, .. } |
-            Bool { ref mut meta, .. } |
-            DateTime { ref mut meta, .. } |
-            Array { ref mut meta, .. } |
-            Table { ref mut meta, .. } |
-            InlineTable { ref mut meta, .. } |
-            Str { ref mut meta, .. } => meta,
+            Integer { ref mut trivia, .. } |
+            Float { ref mut trivia, .. } |
+            Bool { ref mut trivia, .. } |
+            DateTime { ref mut trivia, .. } |
+            Array { ref mut trivia, .. } |
+            Table { ref mut trivia, .. } |
+            InlineTable { ref mut trivia, .. } |
+            Str { ref mut trivia, .. } => trivia,
         }
+    }
+}
+
+#[cfg(test)]
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn StringType_delimiter() {
+        assert_eq!(StringType::delimiter(&StringType::SLB), "\"");
+        assert_eq!(StringType::delimiter(&StringType::MLB), "\"\"\"");
+        assert_eq!(StringType::delimiter(&StringType::SLL), "'");
+        assert_eq!(StringType::delimiter(&StringType::MLL), "'''");
+    }
+
+    #[test]
+    fn Key_delimiter() {
+        let mut key = Key::new("myKey");
+        assert_eq!(key.t, KeyType::Bare);
+        assert_eq!(key.delimiter(), "");
+        key.t = KeyType::Basic;
+        assert_eq!(key.delimiter(), "\"");
+        key.t = KeyType::Literal;
+        assert_eq!(key.delimiter(), "'");
     }
 }

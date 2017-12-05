@@ -61,12 +61,12 @@ mod constructors {
 
     pub fn simple() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
-        let trivia = Trivia::empty();
+        let trivia = Trivia::new();
 
         let bool_k = Key::new("bool");
         let bool_v = Item::Bool {
             val: true,
-            meta: trivia.clone(),
+            trivia: trivia.clone(),
         };
         let _ = container.append(bool_k, bool_v);
 
@@ -75,7 +75,7 @@ mod constructors {
             t: StringType::SLB,
             val: "Hello!",
             original: "Hello!",
-            meta: trivia.clone(),
+            trivia: trivia.clone(),
         };
         let _ = container.append(string_k, string_v);
 
@@ -88,7 +88,7 @@ mod constructors {
 
     pub fn AoTs() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
-        let trivia = Trivia::empty();
+        let trivia = Trivia::new();
 
         let mut payload_first = Vec::new();
 
@@ -110,7 +110,7 @@ mod constructors {
             let nested_v = Item::Table {
                 is_aot_elem: false,
                 val: nested_container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             };
 
             let _ = _container.append(nested_k, nested_v);
@@ -118,7 +118,7 @@ mod constructors {
             Item::Table {
                 is_aot_elem: true,
                 val: _container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             }
         };
 
@@ -132,7 +132,7 @@ mod constructors {
             Item::Table {
                 is_aot_elem: true,
                 val: _container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             }
         };
 
@@ -150,7 +150,7 @@ mod constructors {
             let boolean_k = Key::new("bool");
             let boolean_v = Item::Bool {
                 val: true,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             };
             let mut table_container = Container::new();
             let _ = table_container.append(boolean_k, boolean_v);
@@ -160,7 +160,7 @@ mod constructors {
             let table = Item::Table {
                 is_aot_elem: true,
                 val: table_container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             };
             _payload.push(table.clone());
             _payload.push(table.clone());
@@ -176,7 +176,7 @@ mod constructors {
             let nested_v = Item::Table {
                 is_aot_elem: false,
                 val: nested_container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             };
 
             let _ = _container.append(nested_k, nested_v);
@@ -184,7 +184,7 @@ mod constructors {
             Item::Table {
                 is_aot_elem: true,
                 val: _container,
-                meta: trivia.clone(),
+                trivia: trivia.clone(),
             }
         };
 
@@ -199,7 +199,7 @@ mod constructors {
         let table = Item::Table {
             is_aot_elem: true,
             val: Container::new(),
-            meta: trivia.clone(),
+            trivia: trivia.clone(),
         };
         payload_second.push(table.clone());
         payload_second.push(table.clone());
@@ -217,7 +217,7 @@ mod constructors {
 
     pub fn whitespace() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
-        let _trivia = Trivia::empty();
+        let _trivia = Trivia::new();
         let item = Item::WS(concat!(
             "           ",
             nl!(),
@@ -236,16 +236,16 @@ mod constructors {
     pub fn indented() -> Result<TOMLDocument<'static>> {
         let mut container = Container::new();
 
-        let mut trivia = Trivia::empty();
+        let mut trivia = Trivia::new();
         trivia.trail = concat!("  ", nl!());
         let key = Key::new("bool");
         let value = Item::Bool {
             val: true,
-            meta: trivia,
+            trivia: trivia,
         };
         container.append(key, value).unwrap();
 
-        let mut trivia = Trivia::empty();
+        let mut trivia = Trivia::new();
         trivia.indent = "\t";
         trivia.trail = concat!("\t", nl!());
         let key = Key::new("string");
@@ -253,20 +253,20 @@ mod constructors {
             t: StringType::SLB,
             val: "Hello!",
             original: "Hello!",
-            meta: trivia,
+            trivia: trivia,
         };
         container.append(key, value).unwrap();
 
-        let _trivia = Trivia::empty();
+        let _trivia = Trivia::new();
         let value = Item::WS(concat!(nl!(), nl!()));
         container.append(None, value).unwrap();
 
-        let mut trivia = Trivia::empty();
+        let mut trivia = Trivia::new();
         trivia.indent = " ";
         let key = Key::new("int");
         let value = Item::Integer {
             val: 42,
-            meta: trivia,
+            trivia: trivia,
             raw: "42",
         };
         container.append(key, value).unwrap();

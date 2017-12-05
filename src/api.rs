@@ -9,7 +9,7 @@ use chrono::DateTime as ChronoDateTime;
 pub fn integer(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Integer {
         val: raw.parse::<i64>()?,
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
         raw: raw,
     })
 }
@@ -17,7 +17,7 @@ pub fn integer(raw: &'static str) -> Result<Item<'static>> {
 pub fn float(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Float {
         val: raw.parse::<f64>()?,
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
         raw: raw,
     })
 }
@@ -25,14 +25,14 @@ pub fn float(raw: &'static str) -> Result<Item<'static>> {
 pub fn bool(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Bool {
         val: raw.parse::<bool>()?,
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
     })
 }
 
 pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::DateTime {
         val: ChronoDateTime::parse_from_rfc3339(raw)?,
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
         raw: raw,
     })
 }
@@ -41,7 +41,7 @@ pub fn array<'a>() -> Result<Item<'a>> {
     Ok(Item::Array {
         // @todo: Average length of toml arrays?
         val: Vec::with_capacity(10),
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
     })
 }
 
@@ -49,14 +49,14 @@ pub fn table<'a>() -> Item<'a> {
     Item::Table {
         is_aot_elem: false,
         val: Container::new(),
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
     }
 }
 
 pub fn inline_table<'a>() -> Item<'a> {
     Item::InlineTable {
         val: Container::new(),
-        meta: Trivia::empty(),
+        trivia: Trivia::new(),
     }
 }
 
