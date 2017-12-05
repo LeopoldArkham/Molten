@@ -65,13 +65,13 @@ impl<'a> Container<'a> {
                             false => ("[", "]"),
                         };
                         format!("{}{}{}{}{}{}{}{}",
-                        v.meta().indent,
+                        v.trivia().indent,
                         open,
                         k.unwrap().as_string(),
                         close,
-                        v.meta().comment_ws,
-                        v.meta().comment,
-                        v.meta().trail,
+                        v.trivia().comment_ws,
+                        v.trivia().comment,
+                        v.trivia().trail,
                         v.as_string(),)
                     }
                     Item::AoT(vec) => {
@@ -80,11 +80,11 @@ impl<'a> Container<'a> {
                         for table in vec {
                             buf.push_str(&format!(
                                 "{}[[{}]]{}{}{}",
-                                table.meta().indent,
+                                table.trivia().indent,
                                 key,
-                                table.meta().comment_ws,
-                                table.meta().comment,
-                                table.meta().trail
+                                table.trivia().comment_ws,
+                                table.trivia().comment,
+                                table.trivia().trail
                             ));
                             buf.push_str(&table.as_string());
                         }
@@ -94,13 +94,13 @@ impl<'a> Container<'a> {
                         let k = k.unwrap();
                         format!(
                             "{}{}{}{}{}{}{}",
-                            v.meta().indent,
+                            v.trivia().indent,
                             k.as_string(),
                             k.sep,
                             v.as_string(),
-                            v.meta().comment_ws,
-                            v.meta().comment,
-                            v.meta().trail
+                            v.trivia().comment_ws,
+                            v.trivia().comment,
+                            v.trivia().trail
                         )
                     }
                 }

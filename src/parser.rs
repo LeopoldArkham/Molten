@@ -76,6 +76,18 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Increments the parser by `n` characters if the end of the input
+    /// has not been reached. Eliminates the need for repeated 'self.inc();'
+    /// in code.
+    fn inc_n(&mut self, n: usize) -> bool {
+        for _ in 0..n {
+            if !self.inc() {
+                return false
+            }
+        }
+        true
+    }
+
     /// Returns true if the parser has reached the end of the input.
     fn end(&self) -> bool {
         self.idx >= self.src.len()
@@ -301,12 +313,12 @@ impl<'a> Parser<'a> {
         // Comment
         if parse_comment {
             let (cws, comment, trail) = self.parse_comment_trail();
-            let meta = val.meta_mut();
+            let meta = val.trivia_mut();
             meta.comment_ws = cws;
             meta.comment = comment;
             meta.trail = trail;
         }
-        val.meta_mut().indent = indent;
+        val.trivia_mut().indent = indent;
 
         Ok((key, val))
     }
@@ -320,27 +332,20 @@ impl<'a> Parser<'a> {
             '\'' => self.parse_literal_string(),
             // Boolean: true
             't' if self.src[self.idx..].starts_with("true") => {
-                self.inc();
-                self.inc();
-                self.inc();
-                self.inc();
+                self.inc_n(4);
 
                 Ok(Item::Bool {
                     val: true,
-                    meta: trivia,
+                    trivia: trivia,
                 })
             }
             // Boolean: False
             'f' if self.src[self.idx..].starts_with("false") => {
-                self.inc();
-                self.inc();
-                self.inc();
-                self.inc();
-                self.inc();
+                self.inc_n(5);
 
                 Ok(Item::Bool {
                     val: false,
-                    meta: trivia,
+                    trivia: trivia,
                 })
             }
             // Array
@@ -377,7 +382,7 @@ impl<'a> Parser<'a> {
 
                 let res = Item::Array {
                     val: elems,
-                    meta: trivia,
+                    trivia: trivia,
                 };
 
                 if res.is_homogeneous() {
@@ -402,7 +407,7 @@ impl<'a> Parser<'a> {
 
                 Ok(Item::InlineTable {
                     val: elems,
-                    meta: trivia,
+                    trivia: trivia,
                 })
             }
             // Integer, Float, or DateTime
@@ -417,7 +422,7 @@ impl<'a> Parser<'a> {
                     return Ok(Item::DateTime {
                         val: res,
                         raw: raw,
-                        meta: trivia,
+                        trivia: trivia,
                     });
                 } else {
                     Err(self.error(ErrorKind::InvalidNumberOrDate))
@@ -465,13 +470,13 @@ impl<'a> Parser<'a> {
         if let Ok(res) = i64::from_str(&clean) {
             return Some(Item::Integer {
                 val: res,
-                meta: trivia,
+                trivia: trivia,
                 raw,
             });
         } else if let Ok(res) = f64::from_str(&clean) {
             return Some(Item::Float {
                 val: res,
-                meta: trivia,
+                trivia: trivia,
                 raw,
             });
         }
@@ -514,7 +519,7 @@ impl<'a> Parser<'a> {
                     t: str_type,
                     val: "",
                     original: "",
-                    meta: Default::default(),
+                    trivia: Default::default(),
                 });
             }
         }
@@ -538,7 +543,7 @@ impl<'a> Parser<'a> {
                     t: str_type,
                     val: val,
                     original: val,
-                    meta: Default::default(),
+                    trivia: Default::default(),
                 });
             } else {
                 self.inc() || return Err(self.error(ErrorKind::UnexpectedEof));
@@ -546,7 +551,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses a Key at the current position;
+    /// Parses a `Key` at the current position;
     /// WS before the key must be exhausted first at the callsite.
     fn parse_key(&mut self) -> Key<'a> {
         let key = match self.current {
@@ -679,7 +684,7 @@ impl<'a> Parser<'a> {
                         let table = Item::Table {
                             is_aot_elem: is_aot,
                             val: values.clone(),
-                            meta: Trivia {
+                            trivia: Trivia {
                                 indent: indent,
                                 comment_ws: cws,
                                 comment: comment,
@@ -707,7 +712,7 @@ impl<'a> Parser<'a> {
             result = Item::Table {
                 is_aot_elem: is_aot,
                 val: values.clone(),
-                meta: Trivia {
+                trivia: Trivia {
                     indent: indent,
                     comment_ws: cws,
                     comment: comment,
@@ -739,8 +744,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-
-    use parser::*;
+    use super::*;
 
     #[test]
     fn invalid_numbers() {
