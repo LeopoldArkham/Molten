@@ -17,8 +17,7 @@ script:
   - cargo test --features "$FEATURES"
   - rustdoc --test README.md -L target
   - test "$TRAVIS_RUST_VERSION" != "1.15.0" && cargo doc --no-deps || echo "skipping cargo doc"
-  - cargo bench -- --test --nocapture
-  - test "$FEATURES" != "" && cargo bench --features "$FEATURES" -- --test --nocapture
+  - cargo bench --features "$FEATURES" -- --test --nocapture
 notifications:
   email:
     on_success: never
