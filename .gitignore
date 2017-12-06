@@ -8,6 +8,6 @@ tests/res.toml
 \.vscode/
 \#*\#
 *\~
-
+.criterion/
 *.txt
 *.code-workspace
