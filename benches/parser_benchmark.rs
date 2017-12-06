@@ -9,11 +9,10 @@ extern crate criterion;
 extern crate Molten;
 
 use criterion::{Criterion, Bencher};
+use std::fs::File;
+use std::io::Read;
 
 fn parse_full(b: &mut Bencher) -> () {
-    use std::fs::File;
-    use std::io::Read;
-
     let path = "tests/reproduction/full.toml";
     let mut content = String::new();
     let mut f = File::open(&path).unwrap();
