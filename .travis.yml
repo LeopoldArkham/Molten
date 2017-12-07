@@ -4,8 +4,6 @@ cache: cargo
 
 matrix:
   include:
-    - os: linux
-    - os: osx
     - rust: stable
       env: FEATURES=''
     - rust: beta
@@ -21,8 +19,7 @@ script:
   - cargo test --features "$FEATURES" --verbose
   - rustdoc --test README.md -L target
   - cargo doc --no-deps
-  # Only run benchmarks against the nightly build until benchmarking is
-  # available in stable.
+  # Only run benchmarks against nightly build until benchmarking is in stable
   - test "$FEATURES" != "" && cargo bench --features "$FEATURES" -- --test --nocapture || echo "Skipping benchmarks"
 
 notifications:
