@@ -5,11 +5,11 @@ cache: cargo
 matrix:
   include:
     - rust: stable
-      env: FEATURES=''
+      env: [FEATURES='']
     - rust: beta
-      env: FEATURES=''
+      env: [FEATURES='']
     - rust: nightly
-      env: FEATURES='nightly'
+      env: [FEATURES='nightly']
 
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
