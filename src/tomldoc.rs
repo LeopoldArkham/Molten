@@ -1,3 +1,5 @@
+//! TOML document representation
+
 use container::Container;
 use items::*;
 use errors::*;
@@ -13,12 +15,13 @@ impl<'a> TOMLDocument<'a> {
     pub fn as_string(&self) -> String {
         self.0.as_string()
     }
-
-    // @todo: Tables and aot's sould be appended normally;
-    // all other items should be inserted before the first table-like
-    // item.
+    
+    /// Appends a (key, value) pair to the document.
     pub fn append<K>(&mut self, _key: K, item: Item<'a>) -> Result<()>
     where K: Into<Option<Key<'a>>> {
+        // TODO: Tables and aot's sould be appended normally;
+        // all other items should be inserted before the first table-like
+        // item.
         self.0.append(_key, item)
     }
 }

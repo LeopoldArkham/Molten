@@ -1,3 +1,5 @@
+//! Items are the basic elements of a `TOMLDocument`.
+
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
 use container::Container;
 
@@ -61,7 +63,7 @@ pub enum StringType {
 }
 
 impl StringType {
-    /// Return the delimiter applicable used for the given `StringType'.
+    /// Return the delimiter applicable for the given `StringType'.
     pub fn delimiter(&self) -> &'static str {
         match *self {
             StringType::SLB => "\"",
@@ -245,6 +247,7 @@ pub enum Item<'a> {
     },
     /// An AoT literal.
     AoT(Vec<Item<'a>>),
+    /// A null item.
     None,
 }
 

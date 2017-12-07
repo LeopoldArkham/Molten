@@ -1,11 +1,14 @@
+//! Molten Public API
+
 use items::*;
 use container::*;
 use errors::*;
 
 use chrono::DateTime as ChronoDateTime;
 
-// @todo: passing reference because cow not implemented.
+// TODO: passing reference because cow not implemented.
 
+/// Return an integer `Item` parsed from the text`str`.
 pub fn integer(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Integer {
         val: raw.parse::<i64>()?,
@@ -14,6 +17,7 @@ pub fn integer(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
+/// Return a float `Item` parsed from the text `str`.
 pub fn float(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Float {
         val: raw.parse::<f64>()?,
@@ -22,6 +26,7 @@ pub fn float(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
+/// Return a bool `Item` parsed from the text `str`.
 pub fn bool(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Bool {
         val: raw.parse::<bool>()?,
@@ -29,6 +34,7 @@ pub fn bool(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
+/// Return a datetime `Item` parsed from the text `str`.
 pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::DateTime {
         val: ChronoDateTime::parse_from_rfc3339(raw)?,
@@ -37,14 +43,16 @@ pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
+/// Return a array `Item` parsed from the text `str`.
 pub fn array<'a>() -> Result<Item<'a>> {
     Ok(Item::Array {
-        // @todo: Average length of toml arrays?
+        // TODO: Average length of toml arrays?
         val: Vec::with_capacity(10),
         trivia: Trivia::new(),
     })
 }
 
+/// Return a table `Item` parsed from the text `str`.
 pub fn table<'a>() -> Item<'a> {
     Item::Table {
         is_aot_elem: false,
@@ -53,6 +61,7 @@ pub fn table<'a>() -> Item<'a> {
     }
 }
 
+/// Return an inline table `Item` parsed from the text `str`.
 pub fn inline_table<'a>() -> Item<'a> {
     Item::InlineTable {
         val: Container::new(),
@@ -60,26 +69,32 @@ pub fn inline_table<'a>() -> Item<'a> {
     }
 }
 
+/// Return an aot `Item` parsed from the text `str`.
 pub fn aot<'a>() -> Item<'a> {
     Item::AoT(Vec::with_capacity(5))
 }
 
+/// Return a value `Item` parsed from the text `str`.
 pub fn value<'a>(src: &'a str) -> Result<Item<'a>> {
     let mut parser = ::parser::Parser::new(src);
     parser.parse_value()
 }
 
+/// Return a key-value `Item` parsed from the text `str`.
 pub fn key_value<'a>(src: &'a str) -> Result<(Key<'a>, Item<'a>)> {
     let mut parser = ::parser::Parser::new(src);
     parser.parse_key_value(true)
 }
 
-// @cleanup: How should the string be passed?
+// TODO: How should the string be passed?
 // - With delimiters? Ugly and requires raw strings or escaping
 // - Without delimiters? Nicer but requires inspecting the string to
-// determine its type.
-// Either way this puts "soft" requirements on the API that I don't like,
-// but how to typesystem this instead?
+//   determine its type.
+//
+// Either way this puts "soft" requirements on the API that I don't like. Can
+// the type system be used to enforce these instead?
+
+/// Return a string `Item` parsed from the text `str`.
 pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
     let mut parser = ::parser::Parser::new(raw.as_ref());
     let value = parser.parse_value()?;
@@ -93,6 +108,7 @@ pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
 
 /// Append - Remove
 impl<'a> Item<'a> {
+    /// Append a (key, value) to the current `Item`.
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         use Item::*;
         match *self {
@@ -103,6 +119,7 @@ impl<'a> Item<'a> {
         }
     }
 
+    /// Remove the value for the key `key` from the current `Item`.
     pub fn remove(&mut self, key: &Key<'a>) -> Result<()> {
         use Item::*;
         match *self {

@@ -1,3 +1,6 @@
+//! Error types for Molten
+
+#![allow(missing_docs)]
 error_chain! {
 
     foreign_links {
@@ -71,7 +74,7 @@ error_chain! {
             display("Key \"{}\"does not exist.", key)
         }
 
-        ///
+        /// A string was found that did not match required string syntax.
         ParseStringError {
             description("Input does not contain a valid string.")
         }

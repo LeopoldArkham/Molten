@@ -48,7 +48,7 @@ assert_eq!(toml, parsed.as_string());
 */
 
 #![recursion_limit="128"]
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 #![allow(non_snake_case)]
 
 extern crate pretty_assertions;
@@ -77,9 +77,10 @@ pub mod container;
 #[doc(inline)]
 pub use container::Container;
 
-// In order for the test cases to include newline characters in &'static str values, they
-// need to be embedded in the string literals. A macro can do that, but a const can't.
-// ::NL can continue to be used in other cases, but it will take its value from here.
+// In order for the test cases to include newline characters in &'static str
+// values, they need to be embedded in the string literals. A macro can do that,
+// but a const can't. ::NL can continue to be used in other cases, but it will
+// take its value from here.
 #[doc(hide)]
 #[macro_export]
 #[cfg(windows)]
@@ -94,4 +95,5 @@ macro_rules! nl {
     () => {"\n"};
 }
 
+/// The host operating system-specific line terminator sequence.
 pub const NL: &'static str = nl!();

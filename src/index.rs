@@ -1,3 +1,5 @@
+//! Index methods for varous types
+
 use std::ops::{Index, IndexMut};
 use tomldoc::TOMLDocument;
 use items::*;

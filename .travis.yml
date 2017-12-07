@@ -1,26 +1,34 @@
 language: rust
+sudo: false
+cache: cargo
+
 matrix:
   include:
+    - os: linux
+    - os: osx
     - rust: stable
       env: FEATURES=''
     - rust: beta
       env: FEATURES=''
     - rust: nightly
-      env: FEATURES=nightly
-  allow_failures:
-    - rust: nightly
-sudo: false
+      env: FEATURES='nightly'
+
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+
 script:
-  - cargo build --features "$FEATURES"
-  - cargo test --features "$FEATURES"
+  - cargo build --features "$FEATURES" --verbose
+  - cargo test --features "$FEATURES" --verbose
   - rustdoc --test README.md -L target
-  - test "$TRAVIS_RUST_VERSION" != "1.15.0" && cargo doc --no-deps || echo "skipping cargo doc"
-  - cargo bench --features "$FEATURES" -- --test --nocapture
+  - cargo doc --no-deps
+  # Only run benchmarks against the nightly build until benchmarking is
+  # available in stable.
+  - test "$FEATURES" != "" && cargo bench --features "$FEATURES" -- --test --nocapture || echo "Skipping benchmarks"
+
 notifications:
   email:
     on_success: never
+
 addons:
   apt:
     packages:

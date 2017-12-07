@@ -11,7 +11,7 @@ use std::path::Path;
 use std::fs::File;
 use std::fmt::Display;
 
-// @cleanup: integer scope
+// TODO: integer scope
 use Molten::{TOMLDocument, Container, integer};
 use Molten::errors::*;
 use Molten::items::*;
@@ -19,22 +19,26 @@ use Molten::NL;
 
 // To add a test case:
 // 1) Write a target toml file in /reconstruction
-// 2) Write a public function with the same name inside the `constructors` module (in this file),
-// which programatically reproduces your target document.
-// 3) Add a test_case macro invocation for your new test to the list right above that module.
+// 2) Write a public function with the same name inside the `constructors` 
+//    module (in this file), which programatically reproduces your target
+//    document.
+// 3) Add a test_case macro invocation for your new test to the list right
+//    above that module.
 
 
 /// Defines a test case for the `reconstruction` test module. This macro takes
 /// three arguments:
 ///
-/// 1. `$path`: A relative path from the Cargo package's root directory to the TOML file
-///    that should be parsed, and
-/// 2. `$function`: An identifier referring to the test function that will be called. The
-///    function must be defined with type `fn() -> TOMLDocument<'static>`, and it should
-///    **not** have the `#[test]` attribute. It should also be defined in the `constructors`
+/// 1. `$path`: A relative path from the Cargo package's root directory to the
+///    TOML file that should be parsed, and
+/// 2. `$function`: An identifier referring to the test function that will be
+///    called. The function must be defined with type 
+///    `fn() -> TOMLDocument<'static>`, and it should **not** have the 
+///    `#[test]` attribute. It should also be defined in the `constructors`
 ///    module, and `constructors::` should be left off.
-/// 3. `$test_name`: An identifier that will be used as the test's name. Internally, it
-///    becomes the name of the function that does have the #[test] attribute.
+/// 3. `$test_name`: An identifier that will be used as the test's name. 
+///    Internally, it becomes the name of the function that does have the
+///    #[test] attribute.
 macro_rules! test_case {
     ($path:expr, $function: ident; $test_name: ident) => {
         #[test]

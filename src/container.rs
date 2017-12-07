@@ -1,3 +1,5 @@
+//! Container to hold items within a `TOMLDocument`.
+
 use std::collections::HashMap;
 
 use items::*;
@@ -19,9 +21,8 @@ impl<'a> Container<'a> {
         }
     }
 
-    // @todo: should be pub(crate)
     /// Adds a (key, item) pair to the container.
-    pub fn append<K: Into<Option<Key<'a>>>>(
+    pub(crate) fn append<K: Into<Option<Key<'a>>>>(
         &mut self,
         _key: K,
         item: Item<'a>,
@@ -139,7 +140,7 @@ pub struct ContainerIterator<'a> {
 impl<'a> Iterator for ContainerIterator<'a> {
     type Item = &'a Item<'a>;
 
-    // CLEANUP: There must be a better way
+    // TODO: There must be a better way
     fn next(&mut self) -> Option<&'a Item<'a>> {
         loop {
             if self.current == self.container.body.len() {
