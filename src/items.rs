@@ -61,9 +61,9 @@ pub enum StringType {
 }
 
 impl StringType {
-    /// Return the delimiter used by the given `StringType'.
-    pub fn delimiter(k: &StringType) -> &'static str {
-        match *k {
+    /// Return the delimiter applicable used for the given `StringType'.
+    pub fn delimiter(&self) -> &'static str {
+        match *self {
             StringType::SLB => "\"",
             StringType::MLB => "\"\"\"",
             StringType::SLL => "'",
@@ -86,7 +86,7 @@ pub struct Trivia<'a> {
 }
 
 impl<'a> Trivia<'a> {
-    /// Creates an empty Trivia with windows-style newline.
+    /// Creates an empty Trivia with OS-specific newline.
     pub fn new() -> Trivia<'a> {
         Trivia {
             indent: "",
@@ -98,7 +98,8 @@ impl<'a> Trivia<'a> {
 }
 
 /// The type of a `Key`.
-/// Keys can be bare or follow the same rules as either string type.
+/// Keys can be bare (unquoted), or quoted using basic ("), or literal (')
+/// quotes following the same escaping rules as single-line `StringType`.
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum KeyType {
     /// Bare key.
@@ -156,7 +157,7 @@ impl<'a> ::std::hash::Hash for Key<'a> {
 
 impl<'a> ::std::fmt::Debug for Key<'a> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{}{}{}", self.delimiter(), self.key, &self.delimiter())
+        write!(f, "{}{}{}", self.delimiter(), self.key, self.delimiter())
     }
 }
 
@@ -248,7 +249,8 @@ pub enum Item<'a> {
 }
 
 impl<'a> Item<'a> {
-    /// Returns a unique integer that represents the type of the `Item`.
+    /// Returns the discrimeinant--a unique integer that represents the type
+    /// of the `Item`. This is used for easy comparisions of item types.
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
         match *self {
@@ -330,7 +332,7 @@ impl<'a> Item<'a> {
                 ref original,
                 ..
             } => {
-                format!("{}{}{}", StringType::delimiter(t), original, StringType::delimiter(t))
+                format!("{}{}{}", t.delimiter(), original, t.delimiter())
             }
             AoT(ref body) => {
                 let mut b = String::new();
@@ -389,10 +391,10 @@ mod tests {
 
     #[test]
     fn StringType_delimiter() {
-        assert_eq!(StringType::delimiter(&StringType::SLB), "\"");
-        assert_eq!(StringType::delimiter(&StringType::MLB), "\"\"\"");
-        assert_eq!(StringType::delimiter(&StringType::SLL), "'");
-        assert_eq!(StringType::delimiter(&StringType::MLL), "'''");
+        assert_eq!(StringType::SLB.delimiter(), "\"");
+        assert_eq!(StringType::MLB.delimiter(), "\"\"\"");
+        assert_eq!(StringType::SLL.delimiter(), "'");
+        assert_eq!(StringType::MLL.delimiter(), "'''");
     }
 
     #[test]
