@@ -22,7 +22,7 @@ impl<'a> Container<'a> {
     }
 
     /// Adds a (key, item) pair to the container.
-    pub(crate) fn append<K: Into<Option<Key<'a>>>>(
+    pub fn append<K: Into<Option<Key<'a>>>>(
         &mut self,
         _key: K,
         item: Item<'a>,
