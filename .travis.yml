@@ -10,6 +10,12 @@ matrix:
       env: [FEATURES='']
     - rust: nightly
       env: [FEATURES='nightly']
+    - rust: nightly
+      env: [FUR='awww-its-so-fuzzy']
+      before_script:
+      - cargo install cargo-fuzz
+      script:
+      - cargo fuzz run parse --release -- -max_len=4100 -max_total_time=20
 
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
