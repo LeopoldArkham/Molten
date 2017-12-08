@@ -1,3 +1,5 @@
+//! Parser to Convert TOML text to `TOMLDocument` representation.
+
 use tomldoc::TOMLDocument;
 use tomlchar::TOMLChar;
 use items::*;
@@ -665,7 +667,7 @@ impl<'a> Parser<'a> {
 
         let (cws, comment, trail) = self.parse_comment_trail();
 
-        // CLEANUP: Total hack, add undecided variant
+        // TODO: Total hack, add undecided variant
         let mut result = Item::None;
         let mut values = Container::new();
         while !self.end() {
@@ -707,7 +709,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        // CLEANUP: undecided variant
+        // TODO: undecided variant
         if result.is_none() {
             result = Item::Table {
                 is_aot_elem: is_aot,
@@ -723,8 +725,8 @@ impl<'a> Parser<'a> {
         Ok((key, result))
     }
 
-    /// Parses all siblings of the provided table `first` and
-    /// bundles them into an AoT.
+    /// Parses all siblings of the provided table `first` and bundles them into
+    /// an AoT.
     fn parse_aot(&mut self, first: Item<'a>, name_first: &'a str) -> Result<Item<'a>> {
         let mut payload = vec![first];
         self.AoT_stack.push(name_first);
