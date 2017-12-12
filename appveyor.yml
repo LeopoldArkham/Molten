@@ -1,42 +1,36 @@
 environment:
-
-  global:
-    RUST_VERSION: stable
-    
   matrix:
-    # MSVC
     - TARGET: x86_64-pc-windows-msvc
+      RUST: stable
     - TARGET: i686-pc-windows-msvc
-
-    # MinGW
+      RUST: stable
     - TARGET: x86_64-pc-windows-gnu
+      RUST: stable
     - TARGET: i686-pc-windows-gnu
-
-    # Nightly
+      RUST: stable
+    - TARGET: x86_64-pc-windows-msvc
+      RUST: nightly
     - TARGET: i686-pc-windows-msvc
-      RUST_VERSION: nightly
+      RUST: nightly
     - TARGET: x86_64-pc-windows-gnu
-      RUST_VERSION: nightly
-
-    # Beta
+      RUST: nightly
+    - TARGET: i686-pc-windows-gnu
+      RUST: nightly
+    - TARGET: x86_64-pc-windows-msvc
+      RUST: beta
     - TARGET: i686-pc-windows-msvc
-      RUST_VERSION: beta
+      RUST: beta
     - TARGET: x86_64-pc-windows-gnu
-      RUST_VERSION: beta
-
+      RUST: beta
+    - TARGET: i686-pc-windows-gnu
+      RUST: beta
   
 install:
-  - ps: >-
-      If ($Env:TARGET -eq 'x86_64-pc-windows-gnu') {
-        $Env:PATH += ';C:\msys64\mingw64\bin'
-      } ElseIf ($Env:TARGET -eq 'i686-pc-windows-gnu') {
-        $Env:PATH += ';C:\msys64\mingw32\bin'
-      }
-  - curl -sSf -o rustup-init.exe https://win.rustup.rs/
-  - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST_VERSION%
-  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST%
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - rustc -Vv
-  - cargo -V
+  - cargo -Vv
 
 test_script:
   - cargo build --verbose
