@@ -1,9 +1,9 @@
-/*! 
-Molten is a lossless TOML parser that preserves all comments, indentations, 
-whitespace and internal element ordering, and makes all of these fully 
-editable via an easy API. It is written with the intent of replacing the 
+/*!
+Molten is a lossless TOML parser that preserves all comments, indentations,
+whitespace and internal element ordering, and makes all of these fully
+editable via an easy API. It is written with the intent of replacing the
 current TOML parser used in [cargo-edit](https://github.com/killercup/cargo-edit),
-and, eventually, adding that functionality to 
+and, eventually, adding that functionality to
 [cargo](https://github.com/rust-lang/cargo) itself.
 
 ## Goals
@@ -85,7 +85,7 @@ pub use container::Container;
 #[macro_export]
 #[cfg(windows)]
 macro_rules! nl {
-    () => {"\r\n"};
+    () => {"\n"};
 }
 
 #[doc(hide)]
