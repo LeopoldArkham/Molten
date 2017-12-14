@@ -209,6 +209,7 @@ impl<'a> Item<'a> {
 
 
 #[cfg(test)]
+#[allow(unused_mut)]
 mod tests {
     use super::*;
 
@@ -313,29 +314,38 @@ mod tests {
     fn api_array() {
         let i = array();
         assert!(i.is_ok());
-        assert!(i.unwrap().is_array());
-
+        let mut item = i.unwrap();
+        assert!(item.is_array());
         // TODO(markcol): add tests for append/remove
     }
 
+    #[allow(unused_mut)]
     #[test]
     fn api_table() {
         let i = table();
         assert!(i.is_ok());
-        assert!(i.unwrap().is_table());
-
-        // TODO(markcol): add tests for append/remove
-        // assert!(i.append("key1", string("\"some string\"").unwrap()).is_ok());
-        // assert!(i.append("key2", integer("123").unwrap()).is_ok());
+        let mut item = i.unwrap();
+        assert!(item.is_table());
+        let key = "Key1";
+        let s = "'my string'";
+        assert!(item.append(Key::new(key), string(s).unwrap()).is_ok());
+        assert_eq!(&item[key].as_string(), s);
+        assert!(item.remove(&Key::new(key)).is_ok());
+        assert_eq!(&item[key].as_string(), "");
     }
 
     #[test]
     fn api_inline_table() {
         let i = inline_table();
         assert!(i.is_ok());
-        assert!(i.unwrap().is_inline_table());
-
-        // TODO(markcol): add tests for append/remove
+        let mut item = i.unwrap();
+        assert!(item.is_inline_table());
+        let key = "Key1";
+        let s = "'my string'";
+        assert!(item.append(Key::new(key), string(s).unwrap()).is_ok());
+        assert_eq!(&item[key].as_string(), s);
+        assert!(item.remove(&Key::new(key)).is_ok());
+        assert_eq!(&item[key].as_string(), "");
     }
 
     #[test]
