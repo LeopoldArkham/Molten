@@ -1,0 +1,55 @@
+environment:
+  matrix:
+    - TARGET: x86_64-pc-windows-msvc
+      RUST: stable
+    - TARGET: i686-pc-windows-msvc
+      RUST: stable
+    - TARGET: x86_64-pc-windows-gnu
+      RUST: stable
+    - TARGET: i686-pc-windows-gnu
+      RUST: stable
+    - TARGET: x86_64-pc-windows-msvc
+      RUST: nightly
+    - TARGET: i686-pc-windows-msvc
+      RUST: nightly
+    - TARGET: x86_64-pc-windows-gnu
+      RUST: nightly
+    - TARGET: i686-pc-windows-gnu
+      RUST: nightly
+    - TARGET: x86_64-pc-windows-msvc
+      RUST: beta
+    - TARGET: i686-pc-windows-msvc
+      RUST: beta
+    - TARGET: x86_64-pc-windows-gnu
+      RUST: beta
+    - TARGET: i686-pc-windows-gnu
+      RUST: beta
+  
+install:
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe -y --default-host %TARGET% --default-toolchain %RUST%
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - rustc -Vv
+  - cargo -Vv
+
+test_script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - rustdoc --test README.md -L target
+  - cargo doc --no-deps || echo "skipping cargo doc"
+
+build: off
+
+cache:
+  - C:\Users\appveyor\.cargo\registry
+  - target
+
+branches:
+  only:
+    # Release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  - provider: Email
+    on_build_success: false
