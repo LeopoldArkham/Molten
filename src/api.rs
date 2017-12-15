@@ -53,25 +53,25 @@ pub fn array<'a>() -> Result<Item<'a>> {
 }
 
 /// Return a table `Item` parsed from the text `str`.
-pub fn table<'a>() -> Item<'a> {
-    Item::Table {
+pub fn table<'a>() -> Result<Item<'a>> {
+    Ok(Item::Table {
         is_aot_elem: false,
         val: Container::new(),
         trivia: Trivia::new(),
-    }
+    })
 }
 
 /// Return an inline table `Item` parsed from the text `str`.
-pub fn inline_table<'a>() -> Item<'a> {
-    Item::InlineTable {
+pub fn inline_table<'a>() -> Result<Item<'a>> {
+    Ok(Item::InlineTable {
         val: Container::new(),
         trivia: Trivia::new(),
-    }
+    })
 }
 
 /// Return an aot `Item` parsed from the text `str`.
-pub fn aot<'a>() -> Item<'a> {
-    Item::AoT(Vec::with_capacity(5))
+pub fn aot<'a>() -> Result<Item<'a>> {
+    Ok(Item::AoT(Vec::with_capacity(5)))
 }
 
 /// Return a value `Item` parsed from the text `str`.
@@ -108,18 +108,18 @@ pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
 
 /// Append - Remove
 impl<'a> Item<'a> {
-    /// Append a (key, value) to the current `Item`.
-    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
+    /// Append a (key, value) to the current table.
+    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, key: K, item: Item<'a>) -> Result<()> {
         use Item::*;
         match *self {
             Table { ref mut val, .. } |
-            InlineTable { ref mut val, .. } => val.append(_key, item),
+            InlineTable { ref mut val, .. } => val.append(key, item),
             Array { .. } | AoT { .. } => unimplemented!(),
             _ => bail!(ErrorKind::APIWrongItem),
         }
     }
 
-    /// Remove the value for the key `key` from the current `Item`.
+    /// Remove the (key, value) `key` from the current table.
     pub fn remove(&mut self, key: &Key<'a>) -> Result<()> {
         use Item::*;
         match *self {
@@ -172,7 +172,7 @@ impl<'a> Item<'a> {
     }
 
     /// Returns true if Item is a date/time.
-    pub fn is_date_time(&self) -> bool {
+    pub fn is_datetime(&self) -> bool {
         self.discriminant() == 5
     }
 
@@ -204,5 +204,177 @@ impl<'a> Item<'a> {
     /// Returns true if Item is None.
     pub fn is_none(&self) -> bool {
         self.discriminant() == 11
+    }
+}
+
+
+#[cfg(test)]
+#[allow(unused_mut)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn api_integer() {
+        // tests contains tuples of a string to test and a boolean that
+        // indicates whether the result of parsing that string should be valid
+        // (true), or not (false).
+        let tests = vec![("99572", true), ("37.2", false)];
+        for (v, r) in tests {
+            let i = integer(v);
+            if r {
+                assert!(i.is_ok());
+                assert!(i.unwrap().is_integer());
+            } else {
+                assert!(i.is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn api_float() {
+        // tests contains tuples of a string to test and a boolean that
+        // indicates whether the result of parsing that string should be valid
+        // (true), or not (false).
+        let tests = vec![("39581.102", true), ("12577.2", true), ("385", true)];
+        for (v, r) in tests {
+            let i = float(v);
+            if r {
+                assert!(i.is_ok());
+                assert!(i.unwrap().is_float());
+            } else {
+                assert!(i.is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn api_bool() {
+        // tests contains tuples of a string to test and a boolean that
+        // indicates whether the result of parsing that string should be valid
+        // (true), or not (false).
+        let tests = vec![("true", true), ("false", true), ("blarg", false)];
+        for (v, r) in tests {
+            let i = bool(v);
+            if r {
+                assert!(i.is_ok());
+                assert!(i.unwrap().is_bool());
+            } else {
+                assert!(i.is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn api_string() {
+        // tests contains tuples of a string to test and a boolean that
+        // indicates whether the result of parsing that string should be valid
+        // (true), or not (false).
+        let tests = vec![
+            ("'my string'", true),
+            ("\"My string\"", true),
+            ("'1234'", true),
+        ];
+
+        for (v, r) in tests {
+            let i = string(v);
+            if r {
+                assert!(i.is_ok());
+                assert!(i.unwrap().is_string());
+            } else {
+                assert!(i.is_err());
+            }
+        }
+    }
+
+    #[test]
+    #[ignore]
+    /// Datetimes are [RFC-3339](https://tools.ietf.org/html/rfc3339)-compliant
+    /// date or time strings.
+
+    // BUG(markcol): fix parsing problems with date times. According to the
+    // [TOML spec](https://github.com/toml-lang/toml#user-content-local-date),
+    // the tests below should work, but fail.
+    fn api_datetime() {
+        // tests contains tuples of a string to test and a boolean that
+        // indicates whether the result of parsing that string should be valid
+        // (true), or not (false).
+        let tests = vec![("1979-05-20", true), ("1974-5-20T11:05Z", true)];
+        for (v, r) in tests {
+            let i = datetime(v);
+            if r {
+                assert!(i.is_ok());
+                assert!(i.unwrap().is_datetime());
+            } else {
+                assert!(i.is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn api_array() {
+        let i = array();
+        assert!(i.is_ok());
+        let mut item = i.unwrap();
+        assert!(item.is_array());
+        // TODO(markcol): add tests for append/remove
+    }
+
+    #[allow(unused_mut)]
+    #[test]
+    fn api_table() {
+        let i = table();
+        assert!(i.is_ok());
+        let mut item = i.unwrap();
+        assert!(item.is_table());
+        let key = "Key1";
+        let s = "'my string'";
+        assert!(item.append(Key::new(key), string(s).unwrap()).is_ok());
+        assert_eq!(&item[key].as_string(), s);
+        assert!(item.remove(&Key::new(key)).is_ok());
+        assert_eq!(&item[key].as_string(), "");
+    }
+
+    #[test]
+    fn api_inline_table() {
+        let i = inline_table();
+        assert!(i.is_ok());
+        let mut item = i.unwrap();
+        assert!(item.is_inline_table());
+        let key = "Key1";
+        let s = "'my string'";
+        assert!(item.append(Key::new(key), string(s).unwrap()).is_ok());
+        assert_eq!(&item[key].as_string(), s);
+        assert!(item.remove(&Key::new(key)).is_ok());
+        assert_eq!(&item[key].as_string(), "");
+    }
+
+    #[test]
+    #[ignore]
+    fn api_is_trivia() {
+        unimplemented!();
+    }
+
+    #[test]
+    #[ignore]
+    fn api_is_value() {
+        unimplemented!();
+    }
+
+    #[test]
+    #[ignore]
+    fn api_is_ws() {
+        unimplemented!();
+    }
+
+    #[test]
+    #[ignore]
+    fn api_is_comment() {
+        unimplemented!();
+    }
+
+    #[test]
+    #[ignore]
+    fn api_is_none() {
+        unimplemented!();
     }
 }
