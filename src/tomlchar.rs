@@ -43,7 +43,7 @@ pub trait TOMLChar {
 mod private {
     /// `Sealed` stops crates other than Molten from implementing any traits
     /// that use it. This allows us to change the trait API without introducing
-    /// a breaking change. 
+    /// a breaking change.
     ///
     /// For more information see the [Rust API Guidelines]
     /// (https://rust-lang-nursery.github.io/api-guidelines/future-proofing.html).

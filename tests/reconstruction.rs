@@ -12,14 +12,14 @@ use std::fs::File;
 use std::fmt::Display;
 
 // TODO: integer scope
-use Molten::{TOMLDocument, Container, integer};
+use Molten::{TOMLDocument, integer};
 use Molten::errors::*;
 use Molten::items::*;
 use Molten::NL;
 
 // To add a test case:
 // 1) Write a target toml file in /reconstruction
-// 2) Write a public function with the same name inside the `constructors` 
+// 2) Write a public function with the same name inside the `constructors`
 //    module (in this file), which programatically reproduces your target
 //    document.
 // 3) Add a test_case macro invocation for your new test to the list right
@@ -32,11 +32,11 @@ use Molten::NL;
 /// 1. `$path`: A relative path from the Cargo package's root directory to the
 ///    TOML file that should be parsed, and
 /// 2. `$function`: An identifier referring to the test function that will be
-///    called. The function must be defined with type 
-///    `fn() -> TOMLDocument<'static>`, and it should **not** have the 
+///    called. The function must be defined with type
+///    `fn() -> TOMLDocument<'static>`, and it should **not** have the
 ///    `#[test]` attribute. It should also be defined in the `constructors`
 ///    module, and `constructors::` should be left off.
-/// 3. `$test_name`: An identifier that will be used as the test's name. 
+/// 3. `$test_name`: An identifier that will be used as the test's name.
 ///    Internally, it becomes the name of the function that does have the
 ///    #[test] attribute.
 macro_rules! test_case {
@@ -59,12 +59,12 @@ mod constructors {
     use super::*;
 
     pub fn empty() -> Result<TOMLDocument<'static>> {
-        let container = Container::new();
-        Ok(TOMLDocument(container))
+        let doc = TOMLDocument::new();
+        Ok(doc)
     }
 
     pub fn simple() -> Result<TOMLDocument<'static>> {
-        let mut container = Container::new();
+        let mut doc = TOMLDocument::new();
         let trivia = Trivia::new();
 
         let bool_k = Key::new("bool");
@@ -72,7 +72,7 @@ mod constructors {
             val: true,
             trivia: trivia.clone(),
         };
-        let _ = container.append(bool_k, bool_v);
+        let _ = doc.append(bool_k, bool_v);
 
         let string_k = Key::new("string");
         let string_v = Item::Str {
@@ -81,23 +81,23 @@ mod constructors {
             original: "Hello!",
             trivia: trivia.clone(),
         };
-        let _ = container.append(string_k, string_v);
+        let _ = doc.append(string_k, string_v);
 
         let int_k = Key::new("int");
         let int_v = integer("42")?;
-        let _ = container.append(int_k, int_v);
+        let _ = doc.append(int_k, int_v);
 
-        Ok(TOMLDocument(container))
+        Ok(doc)
     }
 
     pub fn AoTs() -> Result<TOMLDocument<'static>> {
-        let mut container = Container::new();
+        let mut container = TOMLDocument::new();
         let trivia = Trivia::new();
 
         let mut payload_first = Vec::new();
 
         let first_1 = {
-            let mut _container = Container::new();
+            let mut _container = TOMLDocument::new();
             let id_k = Key::new("id");
             let id_v = integer("1")?;
 
@@ -106,7 +106,7 @@ mod constructors {
             let nested_id_k = Key::new("nested_id");
             let nested_id_v = integer("12")?;
 
-            let mut nested_container = Container::new();
+            let mut nested_container = TOMLDocument::new();
             let _ = nested_container.append(nested_id_k, nested_id_v);
             let _ = nested_container.append(None, Item::WS(::NL));
 
@@ -127,7 +127,7 @@ mod constructors {
         };
 
         let first_2 = {
-            let mut _container = Container::new();
+            let mut _container = TOMLDocument::new();
             let id_k = Key::new("id");
             let id_v = integer("2")?;
             let _ = _container.append(id_k, id_v);
@@ -141,7 +141,7 @@ mod constructors {
         };
 
         let first_3 = {
-            let mut _container = Container::new();
+            let mut _container = TOMLDocument::new();
             let id_k = Key::new("id");
             let id_v = integer("3")?;
             let _ = _container.append(id_k, id_v);
@@ -156,7 +156,7 @@ mod constructors {
                 val: true,
                 trivia: trivia.clone(),
             };
-            let mut table_container = Container::new();
+            let mut table_container = TOMLDocument::new();
             let _ = table_container.append(boolean_k, boolean_v);
             let _ = table_container.append(None, Item::WS(::NL));
 
@@ -172,7 +172,7 @@ mod constructors {
             let nestedagain_k = Key::new("first.nested.nestedagain");
             let nestedagain_v = Item::AoT(_payload);
 
-            let mut nested_container = Container::new();
+            let mut nested_container = TOMLDocument::new();
             let _ = nested_container.append(nested_id_k, nested_id_v);
             let _ = nested_container.append(nestedagain_k, nestedagain_v);
 
@@ -202,7 +202,7 @@ mod constructors {
         let mut payload_second = Vec::new();
         let table = Item::Table {
             is_aot_elem: true,
-            val: Container::new(),
+            val: TOMLDocument::new(),
             trivia: trivia.clone(),
         };
         payload_second.push(table.clone());
@@ -216,11 +216,11 @@ mod constructors {
         let _ = container.append(first_k, first_v);
         let _ = container.append(second_k, second_v);
 
-        Ok(TOMLDocument(container))
+        Ok(container)
     }
 
     pub fn whitespace() -> Result<TOMLDocument<'static>> {
-        let mut container = Container::new();
+        let mut container = TOMLDocument::new();
         let _trivia = Trivia::new();
         let item = Item::WS(concat!(
             "           ",
@@ -234,11 +234,11 @@ mod constructors {
             nl!()
         ));
         container.append(None, item)?;
-        Ok(TOMLDocument(container))
+        Ok(container)
     }
 
     pub fn indented() -> Result<TOMLDocument<'static>> {
-        let mut container = Container::new();
+        let mut container = TOMLDocument::new();
 
         let mut trivia = Trivia::new();
         trivia.trail = concat!("  ", nl!());
@@ -275,13 +275,16 @@ mod constructors {
         };
         container.append(key, value).unwrap();
 
-        Ok(TOMLDocument(container))
+        Ok(container)
     }
 }
 
 /// Constructs a copy of the reference document using the API and
 /// compares the two `TOMLDocument` hierarchies.
-fn reconstruct<P: AsRef<Path> + Display>(path: P, under_test: fn() -> Result<TOMLDocument<'static>>) {
+fn reconstruct<P: AsRef<Path> + Display>(
+    path: P,
+    under_test: fn() -> Result<TOMLDocument<'static>>,
+) {
     let mut reference = String::new();
     let mut f = File::open(&path).unwrap();
     f.read_to_string(&mut reference).unwrap();

@@ -334,9 +334,7 @@ impl<'a> Item<'a> {
                 ref t,
                 ref original,
                 ..
-            } => {
-                format!("{}{}{}", t.delimiter(), original, t.delimiter())
-            }
+            } => format!("{}{}{}", t.delimiter(), original, t.delimiter()),
             AoT(ref body) => {
                 let mut b = String::new();
                 for table in body {

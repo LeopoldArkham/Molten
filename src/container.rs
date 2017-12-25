@@ -22,11 +22,7 @@ impl<'a> Container<'a> {
     }
 
     /// Adds a (key, item) pair to the container.
-    pub fn append<K: Into<Option<Key<'a>>>>(
-        &mut self,
-        _key: K,
-        item: Item<'a>,
-    ) -> Result<()> {
+    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
         let key = _key.into();
         if let Some(k) = key.clone() {
             // TODO: Fix AoT
@@ -41,7 +37,7 @@ impl<'a> Container<'a> {
 
     pub(crate) fn remove(&mut self, key: &Key<'a>) -> Result<()> {
         let idx = self.map.get(key).ok_or(
-            ErrorKind::NonExistentKey(key.as_string())
+            ErrorKind::NonExistentKey(key.as_string()),
         )?;
         self.body[*idx] = (None, Item::None);
 

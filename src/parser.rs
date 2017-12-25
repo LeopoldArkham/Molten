@@ -84,7 +84,7 @@ impl<'a> Parser<'a> {
     fn inc_n(&mut self, n: usize) -> bool {
         for _ in 0..n {
             if !self.inc() {
-                return false
+                return false;
             }
         }
         true
@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
 
     /// Parses the input into a TOMLDocument
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
-        let mut body = Container::new();
+        let mut body = TOMLDocument::new();
 
         // Take all keyvals outside of tables/AoT's.
         while !self.end() {
@@ -189,7 +189,7 @@ impl<'a> Parser<'a> {
             };
             body.append(k, v).chain_err(|| self.parse_error())?;
         }
-        Ok(TOMLDocument(body))
+        Ok(body)
     }
 
     /// Returns whether a key is strictly a child of another key.

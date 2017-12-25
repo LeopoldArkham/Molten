@@ -1,0 +1,14 @@
+# Comment
+val1 = 0
+
+val2 = 1
+
+#Comment
+
+val3 = 2
+
+val4 = [true, #comment
+
+true, true,
+#comment
+true]

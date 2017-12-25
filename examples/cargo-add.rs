@@ -4,9 +4,9 @@ use std::io::{Read, Write};
 use std::fs::File;
 use std::error::Error;
 
-use Molten::{key_value};
+use Molten::key_value;
 
-fn  main() {
+fn main() {
     match run() {
         Err(e) => println!("{}", e),
         _ => {}
@@ -15,7 +15,7 @@ fn  main() {
 
 fn run() -> Result<(), Box<Error>> {
     let mut buf = String::new();
-    let mut  f = File::open("examples/_cargo.toml")?;
+    let mut f = File::open("examples/_cargo.toml")?;
     f.read_to_string(&mut buf)?;
     let mut manifest = Molten::parser::Parser::new(&buf).parse()?;
 
