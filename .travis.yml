@@ -10,6 +10,20 @@ matrix:
       env: [FEATURES='']
     - rust: nightly
       env: [FEATURES='nightly']
+    - rust: nightly
+      env: [FUZZ='0.5.0']
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+      before_script:
+      - cargo install cargo-fuzz --force
+      - mkdir -pv fuzz/corpus/parse/ && cp -n tests/**/*.toml fuzz/corpus/parse/
+      script:
+      - cargo fuzz run parse --release -- -max_len=4100 -max_total_time=20 -detect_leaks=0
 
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH

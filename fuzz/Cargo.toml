@@ -1,4 +1,3 @@
-
 [package]
 name = "Molten-fuzz"
 version = "0.0.1"
@@ -20,3 +19,7 @@ members = ["."]
 [[bin]]
 name = "parse"
 path = "fuzz_targets/parse.rs"
+
+[profile.release]
+debug-assertions = true
+debug = 2
