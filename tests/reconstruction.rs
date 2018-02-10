@@ -16,6 +16,7 @@ use Molten::{TOMLDocument, integer};
 use Molten::errors::*;
 use Molten::items::*;
 use Molten::NL;
+use Molten::api::*;
 
 // To add a test case:
 // 1) Write a target toml file in /reconstruction
@@ -170,7 +171,7 @@ mod constructors {
             _payload.push(table.clone());
 
             let nestedagain_k = Key::new("first.nested.nestedagain");
-            let nestedagain_v = Item::AoT(_payload);
+            let nestedagain_v = aot_from_payload(_payload)?;
 
             let mut nested_container = TOMLDocument::new();
             let _ = nested_container.append(nested_id_k, nested_id_v);
@@ -197,7 +198,7 @@ mod constructors {
         payload_first.push(first_3);
 
         let first_k = Key::new("first");
-        let first_v = Item::AoT(payload_first);
+        let first_v = aot_from_payload(payload_first)?;
 
         let mut payload_second = Vec::new();
         let table = Item::Table {
@@ -210,7 +211,7 @@ mod constructors {
         payload_second.push(table.clone());
 
         let second_k = Key::new("second");
-        let second_v = Item::AoT(payload_second);
+        let second_v = aot_from_payload(payload_second)?;
 
 
         let _ = container.append(first_k, first_v);

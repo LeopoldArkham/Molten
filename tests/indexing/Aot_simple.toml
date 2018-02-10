@@ -1,0 +1,8 @@
+[[aot]]
+    value = 0
+
+[[aot]]
+    value = 1
+
+    [[aot]]
+    value = 2

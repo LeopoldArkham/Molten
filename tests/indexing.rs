@@ -8,7 +8,7 @@ extern crate Molten;
 extern crate pretty_assertions;
 
 #[test]
-fn index_simple() {
+fn simple() {
     let mut f = File::open("tests/indexing/simple.toml").unwrap();
     let mut buf = String::new();
     f.read_to_string(&mut buf).unwrap();
@@ -37,9 +37,28 @@ fn skip_trivia() {
     assert!(parsed[0].is_value());
     assert!(parsed[1].is_value());
     assert!(parsed[2].is_value());
+    assert!(parsed[3].is_value());    
 
     assert!(parsed[3][0].is_value());
     assert!(parsed[3][1].is_value());
     assert!(parsed[3][2].is_value());
     assert!(parsed[3][3].is_value());
+}
+
+#[test]
+fn Aot_simple() {
+    let mut f = File::open("tests/indexing/AoT_simple.toml").unwrap();
+    let mut buf = String::new();
+    f.read_to_string(&mut buf).unwrap();
+
+    let parsed = {
+        let mut parser = Molten::parser::Parser::new(&buf);
+        parser.parse().unwrap()
+    };
+
+    assert!(parsed.iter().count() == 1);
+
+    for i in 0..2 {
+        assert!(parsed[0][i]["value"].as_integer().unwrap() == i as i64);
+    }
 }

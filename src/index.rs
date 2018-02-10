@@ -20,7 +20,23 @@ impl<'a> Index<usize> for Container<'a> {
             }
         }
         panic!("Index out of bounds");
+    }
+}
+
+impl<'a> IndexMut<usize> for Container<'a> {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        let mut current = 0;
+        for item in &mut self.body {
+            if item.0.is_some() {
+                if current == idx {
+                    return &mut item.1;
+                } else {
+                    current += 1;
+                }
+            }
         }
+        panic!("Index out of bounds");
+    }
 }
 
 impl<'a> Index<&'static str> for Container<'a> {
@@ -30,7 +46,8 @@ impl<'a> Index<&'static str> for Container<'a> {
         let k = Key {
             t: KeyType::Bare,
             sep: "",
-            key: name,
+            key: name.into(),
+            raw: name.into(),
         };
         let idx = self.map.get(&k).expect("Invalid key");
         &self.body[*idx].1
@@ -42,7 +59,8 @@ impl<'a> IndexMut<&'static str> for Container<'a> {
         let k = Key {
             t: KeyType::Bare,
             sep: "",
-            key: name,
+            key: name.into(),
+            raw: name.into(),            
         };
         let idx = self.map.get(&k).expect("Invalid key");
         &mut self.body[*idx].1
@@ -70,7 +88,11 @@ impl<'a> Index<usize> for Item<'a> {
             }
             Table { ref val, .. } => &val[idx],
             InlineTable { ref val, .. } => &val[idx],
-            AoT(ref vec) => &vec.iter().nth(idx).expect("Indexing AoT failed"),
+            // @fixme: indexing AoTs
+            // AoT (val) => &val.iter().nth(idx).expect("Indexing AoT failed"),
+            AoT (_) => {
+                
+            },
             _ => panic!("This value cannot be indexed."),
         }
     }
@@ -83,14 +105,14 @@ impl<'a> Index<&'static str> for Item<'a> {
         let k = Key {
             t: KeyType::Bare,
             sep: "",
-            key: name,
+            key: name.into(),
+            raw: name.into(),                        
         };
 
         use self::Item::*;
         match *self {
-            Table { ref val, .. } | InlineTable { ref val, .. } => {
-                &val.body[*val.map.get(&k).expect("Invalid key")].1
-            }
+            Table { ref val, .. } |
+            InlineTable { ref val, .. } => &val.body[*val.map.get(&k).expect("Invalid key")].1,
             _ => panic!("Only tables and Inline Tables can be indexed by str"),
         }
     }

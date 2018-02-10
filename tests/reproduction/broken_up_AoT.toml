@@ -1,0 +1,10 @@
+[[  aot]]
+val1 = true
+val2 = false
+
+[separator]
+hello = "World!"
+
+[[aot  ]]
+val1 = false
+val2 = true

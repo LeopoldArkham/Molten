@@ -8,7 +8,7 @@ use chrono::DateTime as ChronoDateTime;
 
 // TODO: passing reference because cow not implemented.
 
-/// Return an integer `Item` parsed from the text`str`.
+/// Return an integer `Item` parsed from the text `raw`.
 pub fn integer(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Integer {
         val: raw.parse::<i64>()?,
@@ -17,7 +17,7 @@ pub fn integer(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
-/// Return a float `Item` parsed from the text `str`.
+/// Return a float `Item` parsed from the text `raw`.
 pub fn float(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Float {
         val: raw.parse::<f64>()?,
@@ -26,7 +26,7 @@ pub fn float(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
-/// Return a bool `Item` parsed from the text `str`.
+/// Return a bool `Item` parsed from the text `raw`.
 pub fn bool(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::Bool {
         val: raw.parse::<bool>()?,
@@ -34,7 +34,7 @@ pub fn bool(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
-/// Return a datetime `Item` parsed from the text `str`.
+/// Return a datetime `Item` parsed from the text `raw`.
 pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
     Ok(Item::DateTime {
         val: ChronoDateTime::parse_from_rfc3339(raw)?,
@@ -43,7 +43,7 @@ pub fn datetime(raw: &'static str) -> Result<Item<'static>> {
     })
 }
 
-/// Return a array `Item` parsed from the text `str`.
+/// Returns a array `Item`.
 pub fn array<'a>() -> Result<Item<'a>> {
     Ok(Item::Array {
         // TODO: Average length of toml arrays?
@@ -52,7 +52,7 @@ pub fn array<'a>() -> Result<Item<'a>> {
     })
 }
 
-/// Return a table `Item` parsed from the text `str`.
+/// Returns a table `Item`.
 pub fn table<'a>() -> Result<Item<'a>> {
     Ok(Item::Table {
         is_aot_elem: false,
@@ -61,7 +61,7 @@ pub fn table<'a>() -> Result<Item<'a>> {
     })
 }
 
-/// Return an inline table `Item` parsed from the text `str`.
+/// Returns an inline table `Item`.
 pub fn inline_table<'a>() -> Result<Item<'a>> {
     Ok(Item::InlineTable {
         val: Container::new(),
@@ -69,18 +69,23 @@ pub fn inline_table<'a>() -> Result<Item<'a>> {
     })
 }
 
-/// Return an aot `Item` parsed from the text `str`.
+/// Returns an aot `Item`.
 pub fn aot<'a>() -> Result<Item<'a>> {
     Ok(Item::AoT(Vec::with_capacity(5)))
 }
 
-/// Return a value `Item` parsed from the text `str`.
+/// Returns an aot `Item`.
+pub fn aot_from_payload<'a>(payload: Vec<Item<'a>>) -> Result<Item<'a>> {
+        Ok(Item::AoT(vec![payload]))
+}
+
+/// Returns a value `Item` parsed from the text `src`.
 pub fn value<'a>(src: &'a str) -> Result<Item<'a>> {
     let mut parser = ::parser::Parser::new(src);
     parser.parse_value()
 }
 
-/// Return a key-value `Item` parsed from the text `str`.
+/// Returns a key-value `Item` parsed from the text `src`.
 pub fn key_value<'a>(src: &'a str) -> Result<(Key<'a>, Item<'a>)> {
     let mut parser = ::parser::Parser::new(src);
     parser.parse_key_value(true)
@@ -91,8 +96,7 @@ pub fn key_value<'a>(src: &'a str) -> Result<(Key<'a>, Item<'a>)> {
 // - Without delimiters? Nicer but requires inspecting the string to
 //   determine its type.
 //
-// Either way this puts "soft" requirements on the API that I don't like. Can
-// the type system be used to enforce these instead?
+// Either way this puts "soft" requirements on the API that I don't like.
 
 /// Return a string `Item` parsed from the text `str`.
 pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
@@ -131,12 +135,23 @@ impl<'a> Item<'a> {
     }
 }
 
+/// Extraction methods
+impl<'a> Item<'a> {
+    /// Returns the contained integer as `i64` if `self` is Item::Integer, otherwise an error.
+    pub fn as_integer(&self) -> Result<i64> {
+        match *self {
+            Item::Integer{val, ..} => Ok(val),
+            _ => Err("Called as_integer on a non-integer Item vaiant".into()),
+        }
+    }
+}
+
 /// Identity methods
 impl<'a> Item<'a> {
     /// Returns true if Item is a value.
     pub fn is_value(&self) -> bool {
         match self.discriminant() {
-            0 | 1 => false,
+            0 | 1 | 11 | 12 => false,
             _ => true,
         }
     }

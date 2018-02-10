@@ -1,6 +1,7 @@
 //! Container to hold items within a `TOMLDocument`.
 
 use std::collections::HashMap;
+use std::borrow::Cow;
 
 use items::*;
 use errors::*;
@@ -22,19 +23,33 @@ impl<'a> Container<'a> {
     }
 
     /// Adds a (key, item) pair to the container.
-    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, item: Item<'a>) -> Result<()> {
+    pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, mut item: Item<'a>) -> Result<()> {
         let key = _key.into();
+        let mut segment = false;
         if let Some(k) = key.clone() {
-            // TODO: Fix AoT
-            // if self.map.contains_key(&k) {
-            //     bail!(ErrorKind::DuplicateKey(k.key.into()));
-            // }
+            if self.map.contains_key(&k) {
+                match item {
+                    Item::AoTSegment { ref mut payload, .. } => {
+                        segment = true;
+                        let idx = self.map[&k];
+                        self.body[idx].1.extend_aot(payload.take().unwrap())?;
+                    }
+                    _ => bail!(ErrorKind::DuplicateKey(k.key.into())),
+                }
+            }
+            if !segment {
             self.map.insert(k, self.body.len());
+            }
         }
+        if segment {
+            self.body.push((None, item));            
+        } else {
         self.body.push((key, item));
+        }
         Ok(())
     }
 
+    /// Removes the kv pair indicated by `key`.
     pub(crate) fn remove(&mut self, key: &Key<'a>) -> Result<()> {
         let idx = self.map.get(key).ok_or(
             ErrorKind::NonExistentKey(key.as_string()),
@@ -45,12 +60,12 @@ impl<'a> Container<'a> {
     }
 
     // Returns a mutable reference to the item that was most recently been added to the container.
+    // Used for merging whitespace.
     pub(crate) fn last_item_mut(&mut self) -> Option<&mut Item<'a>> {
         self.body.last_mut().map(|&mut (_, ref mut v)| v)
     }
 
     /// Returns the string representation of a `Container`.
-    // TODO: minimize duplication with Item::as_string()
     pub fn as_string(&self) -> String {
         let mut s = String::new();
         for (k, v) in self.body.clone().into_iter() {
@@ -71,10 +86,10 @@ impl<'a> Container<'a> {
                         v.trivia().trail,
                         v.as_string(),)
                     }
-                    Item::AoT(vec) => {
+                    Item::AoT (val) => {
                         let mut buf = String::new();
                         let key = k.unwrap().as_string();
-                        for table in vec {
+                        for table in &val[0] {
                             buf.push_str(&format!(
                                 "{}[[{}]]{}{}{}",
                                 table.trivia().indent,
@@ -102,7 +117,20 @@ impl<'a> Container<'a> {
                     }
                 }
             } else {
-                v.as_string()
+                match v {
+                    Item::AoTSegment {key, segment, ..} => {
+                        let k = Key::new(Cow::Owned(key.clone()));
+                        let idx = self.map[&k];
+                        let v = self.body[idx].1.segment(segment);
+                        let mut buf = String::new();
+                        for table in v {
+                            buf.push_str(&format!("[[{}]]\r\n", key));
+                            buf.push_str(&table.as_string());
+                        }
+                        buf
+                    }
+                    _ => v.as_string()
+                }
             };
             s.push_str(&cur)
         }

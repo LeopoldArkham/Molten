@@ -9,6 +9,8 @@ use container::Container;
 use chrono::DateTime as ChronoDateTime;
 
 use std::str::{FromStr, CharIndices};
+use std::collections::HashMap;
+use std::borrow::Cow;
 
 // FIXME: Allowing dead code due to https://github.com/rust-lang/rust/issues/18290
 #[allow(non_camel_case_types, dead_code)]
@@ -28,7 +30,8 @@ pub struct Parser<'a> {
     /// Index into `src` between which and `idx` slices will be extracted
     marker: usize,
     /// A LIFO stack to keep track of the current AoT.
-    AoT_stack: Vec<&'a str>,
+    AoT_stack: Vec<String>,
+    AoT_keys: HashMap<Cow<'a, str>, usize>
 }
 
 impl<'a> Parser<'a> {
@@ -41,6 +44,7 @@ impl<'a> Parser<'a> {
             marker: 0,
             current: '\0',
             AoT_stack: Vec::new(),
+            AoT_keys: HashMap::new(),
         };
         p.inc();
         p
@@ -155,6 +159,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parses the input into a TOMLDocument
+    /// @cleanup: Take self by value.
     pub fn parse(&mut self) -> Result<TOMLDocument<'a>> {
         let mut body = TOMLDocument::new();
 
@@ -183,7 +188,7 @@ impl<'a> Parser<'a> {
                 Item::Table { is_aot_elem, .. } if is_aot_elem => {
                     // This is just the first table in an AoT. Parse the rest of the array
                     // along with it.
-                    self.parse_aot(v, k.key)?
+                    self.parse_aot(v, k.key.clone())?
                 }
                 _ => v,
             };
@@ -259,6 +264,7 @@ impl<'a> Parser<'a> {
 
         loop {
             match self.current {
+                // @cleanup: duplicte to _ below
                 '\n' => break,
                 '#' => {
                     comment_ws = self.extract();
@@ -581,7 +587,8 @@ impl<'a> Parser<'a> {
         Key {
             t: key_type,
             sep: "",
-            key: key,
+            key: key.into(),
+            raw: key.into(),            
         }
     }
 
@@ -594,7 +601,8 @@ impl<'a> Parser<'a> {
         Key {
             t: KeyType::Bare,
             sep: "",
-            key: key,
+            key: key.into(),
+            raw: key.into(),
         }
     }
 
@@ -656,7 +664,8 @@ impl<'a> Parser<'a> {
         let key = Key {
             t: KeyType::Bare,
             sep: "",
-            key: name.clone(),
+            key: name.into(),
+            raw: name.into(),
         };
         self.inc(); // Skip closing bracket.
         if is_aot {
@@ -667,7 +676,6 @@ impl<'a> Parser<'a> {
 
         let (cws, comment, trail) = self.parse_comment_trail();
 
-        // TODO: Total hack, add undecided variant
         let mut result = Item::None;
         let mut values = Container::new();
         while !self.end() {
@@ -696,7 +704,7 @@ impl<'a> Parser<'a> {
                         result = if is_aot &&
                             (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap())
                         {
-                            self.parse_aot(table, name)?
+                            self.parse_aot(table, Cow::Owned(name.to_string()))?
                         } else {
                             table
                         }
@@ -709,7 +717,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        // TODO: undecided variant
+
         if result.is_none() {
             result = Item::Table {
                 is_aot_elem: is_aot,
@@ -727,9 +735,10 @@ impl<'a> Parser<'a> {
 
     /// Parses all siblings of the provided table `first` and bundles them into
     /// an AoT.
-    fn parse_aot(&mut self, first: Item<'a>, name_first: &'a str) -> Result<Item<'a>> {
+    fn parse_aot(&mut self, first: Item<'a>, name_first: Cow<'a, str>) -> Result<Item<'a>> {
+        self.AoT_stack.push(name_first.clone().into_owned());
+        
         let mut payload = vec![first];
-        self.AoT_stack.push(name_first);
         while !self.end() {
             let (is_aot_next, name_next) = self.peek_table()?;
             if is_aot_next && name_next == name_first {
@@ -740,7 +749,17 @@ impl<'a> Parser<'a> {
             }
         }
         self.AoT_stack.pop();
-        Ok(Item::AoT(payload))
+
+        if self.AoT_keys.contains_key(&*name_first) {
+            *self.AoT_keys.get_mut(&*name_first).unwrap() += 1;
+            println!("Reopening existing AoT");
+            return Ok(Item::AoTSegment {key: name_first.to_string(), segment: self.AoT_keys[&*name_first], payload: Some(payload)})
+        } else {
+            self.AoT_keys.insert(name_first, 0);
+            return Ok(Item::AoT(vec![payload]));
+
+        }
+
     }
 }
 

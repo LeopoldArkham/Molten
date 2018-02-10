@@ -1,7 +1,11 @@
 //! Items are the basic elements of a `TOMLDocument`.
 
 use chrono::{DateTime as ChronoDateTime, FixedOffset};
+use errors::*;
 use container::Container;
+
+use std::borrow::Cow;
+use std::fmt;
 
 /// Type of TOML string.
 ///
@@ -75,7 +79,7 @@ impl StringType {
 }
 
 /// Trivia information (aka metadata).
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Trivia<'a> {
     /// Whitespace before a value.
     pub indent: &'a str,
@@ -96,6 +100,12 @@ impl<'a> Trivia<'a> {
             comment: "",
             trail: ::NL,
         }
+    }
+}
+
+impl<'a> fmt::Debug for Trivia<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "")
     }
 }
 
@@ -120,16 +130,19 @@ pub struct Key<'a> {
     /// The key separator
     pub sep: &'a str,
     /// The actual key value
-    pub key: &'a str,
+    pub key: Cow<'a, str>,
+    /// The raw key
+    pub raw: Cow<'a, str>
 }
 
 impl<'a> Key<'a> {
     /// Creates a new bare key with a standard separator
-    pub fn new(k: &'a str) -> Key<'a> {
+    pub fn new<K: Into<Cow<'a, str>> + Clone>(k: K) -> Key<'a> {
         Key {
             t: KeyType::Bare,
             sep: " = ",
-            key: k,
+            key: k.clone().into(),
+            raw: k.into(),
         }
     }
 
@@ -166,7 +179,7 @@ impl<'a> ::std::fmt::Debug for Key<'a> {
 impl<'a> Key<'a> {
     /// Returns the string represenation of a `Key`.
     pub fn as_string(&self) -> String {
-        format!("{}{}{}", self.delimiter(), self.key, self.delimiter())
+        format!("{}{}{}", self.delimiter(), self.raw, self.delimiter())
     }
 }
 
@@ -239,16 +252,21 @@ pub enum Item<'a> {
         /// The type of string this represents
         t: StringType,
         /// The string value
-        val: &'a str, // TODO: make Cow
+        val: &'a str,
         /// Original string value, including any decoration
         original: &'a str,
         /// Trivia data for the string
         trivia: Trivia<'a>,
     },
     /// An AoT literal.
-    AoT(Vec<Item<'a>>),
+    AoT (Vec<Vec<Item<'a>>>),
     /// A null item.
+    #[doc(hidden)]    
     None,
+    /// A reference to a segment of an aot earlier in the document
+    #[doc(hidden)]
+    // @cleanup: key should not be a string (?). Also document this better
+    AoTSegment { key: String, segment: usize, payload: Option<Vec<Item<'a>>>},
 }
 
 impl<'a> Item<'a> {
@@ -267,9 +285,24 @@ impl<'a> Item<'a> {
             Table { .. } => 7,
             InlineTable { .. } => 8,
             Str { .. } => 9,
-            AoT(_) => 10,
+            AoT (_) => 10,
             None => 11,
+            AoTSegment{ .. } => 12
         }
+    }
+
+    pub(crate) fn extend_aot(&mut self, v: Vec<Item<'a>>) -> Result<()> {
+        match *self {
+            Item::AoT (ref mut val) => {
+                val.push(v);
+            }
+            _ => {
+                bail!(ErrorKind::InternalParserError(
+                    "Called extend_aot on non-aot variant.".into(),
+                ))
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn is_homogeneous(&self) -> bool {
@@ -288,6 +321,18 @@ impl<'a> Item<'a> {
 
             }
             _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn segment(&self, idx: usize) -> &[Item<'a>] {
+        match *self {
+            Item::AoT(ref val) => {
+                &val[idx]
+            }
+            _ => {
+                println!("{:?}, INDEX: {}", self, idx);
+                panic!("Invariant violated: called `segment()` on non-AoT value")
+            }
         }
     }
 
@@ -335,14 +380,15 @@ impl<'a> Item<'a> {
                 ref original,
                 ..
             } => format!("{}{}{}", t.delimiter(), original, t.delimiter()),
-            AoT(ref body) => {
+            AoT (ref val) => {
                 let mut b = String::new();
-                for table in body {
+                for table in &val[0] {
                     b.push_str(&table.as_string());
                 }
                 b
             }
             None => "".to_string(),
+            _ => panic!("Called as_string() on AoTSegment variant.")
         }
     }
 
@@ -350,7 +396,7 @@ impl<'a> Item<'a> {
     pub fn trivia(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT(_) | None => {
+            WS(_) | Comment(_) | AoT { .. } |  AoTSegment{..} | None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
@@ -369,7 +415,7 @@ impl<'a> Item<'a> {
     pub fn trivia_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT(_) | None => {
+            WS(_) | Comment(_) | AoT { .. } | AoTSegment{..} | None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
