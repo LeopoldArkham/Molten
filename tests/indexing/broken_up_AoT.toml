@@ -1,0 +1,17 @@
+[[aot  ]]
+value = 0
+
+[separator]
+hello = "World!"
+
+[[  aot]]
+value = 1
+
+[anotherSeparator]
+bool = true
+
+[yetAnotherSeparator]
+bool = false
+
+[[aot]]
+value = 2

@@ -57,6 +57,21 @@ fn Aot_simple() {
     };
 
     assert!(parsed.iter().count() == 1);
+    for i in 0..2 {
+        assert!(parsed[0][i]["value"].as_integer().unwrap() == i as i64);
+    }
+}
+
+#[test]
+fn Aot_broken_up() {
+    let mut f = File::open("tests/indexing/broken_up_AoT.toml").unwrap();
+    let mut buf = String::new();
+    f.read_to_string(&mut buf).unwrap();
+
+    let parsed = {
+        let mut parser = Molten::parser::Parser::new(&buf);
+        parser.parse().unwrap()
+    };
 
     for i in 0..2 {
         assert!(parsed[0][i]["value"].as_integer().unwrap() == i as i64);

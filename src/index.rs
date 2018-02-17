@@ -1,4 +1,4 @@
-//! Index methods for varous types
+//! Index methods for various types
 
 use std::ops::{Index, IndexMut};
 use container::Container;
@@ -88,10 +88,17 @@ impl<'a> Index<usize> for Item<'a> {
             }
             Table { ref val, .. } => &val[idx],
             InlineTable { ref val, .. } => &val[idx],
-            // @fixme: indexing AoTs
-            // AoT (val) => &val.iter().nth(idx).expect("Indexing AoT failed"),
-            AoT (_) => {
-                
+            AoT (ref val) => {
+                let mut cur = 0;
+                for segment in val {
+                    for table in segment {
+                        if cur == idx {
+                            return &table;
+                        }
+                        cur += 1;
+                    }
+                }
+                panic!("Index out of bounds");                
             },
             _ => panic!("This value cannot be indexed."),
         }

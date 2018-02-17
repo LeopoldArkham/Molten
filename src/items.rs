@@ -138,10 +138,24 @@ pub struct Key<'a> {
 impl<'a> Key<'a> {
     /// Creates a new bare key with a standard separator
     pub fn new<K: Into<Cow<'a, str>> + Clone>(k: K) -> Key<'a> {
+        let k = k.into();
+        let key = Cow::Owned(k.trim().to_string());
         Key {
             t: KeyType::Bare,
             sep: " = ",
-            key: k.clone().into(),
+            key: key,
+            raw: k.into(),
+        }
+    }
+
+    /// Creates a new bare key with a standard separator
+    pub fn new_with_type<K: Into<Cow<'a, str>> + Clone>(k: K, key_type: KeyType) -> Key<'a> {
+        let k = k.into();
+        let key = Cow::Owned(k.trim().to_string());
+        Key {
+            t: key_type,
+            sep: " = ",
+            key: key,
             raw: k.into(),
         }
     }

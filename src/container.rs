@@ -30,11 +30,12 @@ impl<'a> Container<'a> {
             if self.map.contains_key(&k) {
                 match item {
                     Item::AoTSegment { ref mut payload, .. } => {
+                        println!("Adding AoT segment to container");
                         segment = true;
                         let idx = self.map[&k];
                         self.body[idx].1.extend_aot(payload.take().unwrap())?;
                     }
-                    _ => bail!(ErrorKind::DuplicateKey(k.key.into())),
+                    _ => { println!("Not AoTSegment"); bail!(ErrorKind::DuplicateKey(k.key.into()));},
                 }
             }
             if !segment {
@@ -119,6 +120,7 @@ impl<'a> Container<'a> {
             } else {
                 match v {
                     Item::AoTSegment {key, segment, ..} => {
+                        // Needs real key and real ws info
                         let k = Key::new(Cow::Owned(key.clone()));
                         let idx = self.map[&k];
                         let v = self.body[idx].1.segment(segment);
