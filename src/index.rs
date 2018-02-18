@@ -60,7 +60,7 @@ impl<'a> IndexMut<&'static str> for Container<'a> {
             t: KeyType::Bare,
             sep: "",
             key: name.into(),
-            raw: name.into(),            
+            raw: name.into(),
         };
         let idx = self.map.get(&k).expect("Invalid key");
         &mut self.body[*idx].1
@@ -88,7 +88,7 @@ impl<'a> Index<usize> for Item<'a> {
             }
             Table { ref val, .. } => &val[idx],
             InlineTable { ref val, .. } => &val[idx],
-            AoT (ref val) => {
+            AoT(ref val) => {
                 let mut cur = 0;
                 for segment in val {
                     for table in segment {
@@ -98,8 +98,8 @@ impl<'a> Index<usize> for Item<'a> {
                         cur += 1;
                     }
                 }
-                panic!("Index out of bounds");                
-            },
+                panic!("Index out of bounds");
+            }
             _ => panic!("This value cannot be indexed."),
         }
     }
@@ -113,7 +113,7 @@ impl<'a> Index<&'static str> for Item<'a> {
             t: KeyType::Bare,
             sep: "",
             key: name.into(),
-            raw: name.into(),                        
+            raw: name.into(),
         };
 
         use self::Item::*;

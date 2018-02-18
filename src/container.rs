@@ -35,17 +35,20 @@ impl<'a> Container<'a> {
                         let idx = self.map[&k];
                         self.body[idx].1.extend_aot(payload.take().unwrap())?;
                     }
-                    _ => { println!("Not AoTSegment"); bail!(ErrorKind::DuplicateKey(k.key.into()));},
+                    _ => {
+                        println!("Not AoTSegment");
+                        bail!(ErrorKind::DuplicateKey(k.key.into()));
+                    }
                 }
             }
             if !segment {
-            self.map.insert(k, self.body.len());
+                self.map.insert(k, self.body.len());
             }
         }
         if segment {
-            self.body.push((None, item));            
+            self.body.push((None, item));
         } else {
-        self.body.push((key, item));
+            self.body.push((key, item));
         }
         Ok(())
     }
@@ -87,7 +90,7 @@ impl<'a> Container<'a> {
                         v.trivia().trail,
                         v.as_string(),)
                     }
-                    Item::AoT (val) => {
+                    Item::AoT(val) => {
                         let mut buf = String::new();
                         let key = k.unwrap().as_string();
                         for table in &val[0] {
@@ -119,19 +122,25 @@ impl<'a> Container<'a> {
                 }
             } else {
                 match v {
-                    Item::AoTSegment {key, segment, ..} => {
+                    Item::AoTSegment { key, segment, .. } => {
                         // Needs real key and real ws info
-                        let k = Key::new(Cow::Owned(key.clone()));
-                        let idx = self.map[&k];
+                        let idx = self.map[&key];
                         let v = self.body[idx].1.segment(segment);
                         let mut buf = String::new();
                         for table in v {
-                            buf.push_str(&format!("[[{}]]\r\n", key));
+                            buf.push_str(&format!(
+                                "{}[[{}]]{}{}{}",
+                                table.trivia().indent,
+                                key.as_string(),
+                                table.trivia().comment_ws,
+                                table.trivia().comment,
+                                table.trivia().trail
+                            ));
                             buf.push_str(&table.as_string());
                         }
                         buf
                     }
-                    _ => v.as_string()
+                    _ => v.as_string(),
                 }
             };
             s.push_str(&cur)

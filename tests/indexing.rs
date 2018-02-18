@@ -37,7 +37,7 @@ fn skip_trivia() {
     assert!(parsed[0].is_value());
     assert!(parsed[1].is_value());
     assert!(parsed[2].is_value());
-    assert!(parsed[3].is_value());    
+    assert!(parsed[3].is_value());
 
     assert!(parsed[3][0].is_value());
     assert!(parsed[3][1].is_value());

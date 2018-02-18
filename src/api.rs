@@ -76,7 +76,7 @@ pub fn aot<'a>() -> Result<Item<'a>> {
 
 /// Returns an aot `Item`.
 pub fn aot_from_payload<'a>(payload: Vec<Item<'a>>) -> Result<Item<'a>> {
-        Ok(Item::AoT(vec![payload]))
+    Ok(Item::AoT(vec![payload]))
 }
 
 /// Returns a value `Item` parsed from the text `src`.
@@ -140,7 +140,7 @@ impl<'a> Item<'a> {
     /// Returns the contained integer as `i64` if `self` is Item::Integer, otherwise an error.
     pub fn as_integer(&self) -> Result<i64> {
         match *self {
-            Item::Integer{val, ..} => Ok(val),
+            Item::Integer { val, .. } => Ok(val),
             _ => Err("Called as_integer on a non-integer Item vaiant".into()),
         }
     }

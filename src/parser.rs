@@ -32,7 +32,7 @@ pub struct Parser<'a> {
     /// A LIFO stack to keep track of the current AoT.
     AoT_stack: Vec<String>,
     /// @doc
-    AoT_keys: HashMap<Cow<'a, str>, usize>
+    AoT_keys: HashMap<Cow<'a, str>, usize>,
 }
 
 impl<'a> Parser<'a> {
@@ -652,7 +652,7 @@ impl<'a> Parser<'a> {
         while self.current != ']' && self.inc() {}
 
         // TODO: Key parsing and validation.
-        // @cleanup: key should be private        
+        // @cleanup: key should be private
         let name = self.extract_exact();
         let key = Key::new(name);
         self.inc(); // Skip closing bracket.
@@ -663,6 +663,12 @@ impl<'a> Parser<'a> {
         // --------------------------
 
         let (cws, comment, trail) = self.parse_comment_trail();
+        let trivia = Trivia {
+            indent: indent,
+            comment_ws: cws,
+            comment: comment,
+            trail: trail,
+        };
 
         let mut result = Item::None;
         let mut values = Container::new();
@@ -679,15 +685,11 @@ impl<'a> Parser<'a> {
                         let (key_next, table_next) = self.parse_table()?;
                         values.append(key_next, table_next)?;
                     } else {
+                        // Result will not be None
                         let table = Item::Table {
                             is_aot_elem: is_aot,
                             val: values.clone(),
-                            trivia: Trivia {
-                                indent: indent,
-                                comment_ws: cws,
-                                comment: comment,
-                                trail: trail,
-                            },
+                            trivia: trivia.clone(),
                         };
                         result = if is_aot &&
                             (self.AoT_stack.is_empty() || name != *self.AoT_stack.last().unwrap())
@@ -710,25 +712,18 @@ impl<'a> Parser<'a> {
             result = Item::Table {
                 is_aot_elem: is_aot,
                 val: values.clone(),
-                trivia: Trivia {
-                    indent: indent,
-                    comment_ws: cws,
-                    comment: comment,
-                    trail: trail,
-                },
+                trivia: trivia,
             };
         }
         Ok((key, result))
     }
 
-    /// Parses all siblings of the provided table `first` and bundles them into
-    /// an AoT.
-    /// @docs: what can this return?
-    /// Should be storing real keys
-    /// Real men don't string type
+    /// Parses all contiguous siblings of the provided table `first` and returns them in:
+    /// - An `AoTSegment` if the associated `key` was already present in `AoT_Keys`
+    /// - An AoT otherwise
     fn parse_aot(&mut self, first: Item<'a>, key: Key<'a>) -> Result<Item<'a>> {
         self.AoT_stack.push(key.key.to_string());
-        
+
         let mut payload = vec![first];
         while !self.end() {
             let (is_aot_next, name_next) = self.peek_table()?;
@@ -743,7 +738,13 @@ impl<'a> Parser<'a> {
         self.AoT_stack.pop();
         if self.AoT_keys.contains_key(&*key.key) {
             *self.AoT_keys.get_mut(&*key.key).unwrap() += 1;
-            return Ok(Item::AoTSegment {key: key.key.to_string(), segment: self.AoT_keys[&*key.key], payload: Some(payload)})
+            let segment = self.AoT_keys[&*key.key];
+
+            return Ok(Item::AoTSegment {
+                key: key,
+                segment: segment,
+                payload: Some(payload),
+            });
         } else {
             self.AoT_keys.insert(key.key, 0);
             return Ok(Item::AoT(vec![payload]));

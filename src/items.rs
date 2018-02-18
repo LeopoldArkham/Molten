@@ -104,7 +104,7 @@ impl<'a> Trivia<'a> {
 }
 
 impl<'a> fmt::Debug for Trivia<'a> {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "")
     }
 }
@@ -132,7 +132,7 @@ pub struct Key<'a> {
     /// The actual key value
     pub key: Cow<'a, str>,
     /// The raw key
-    pub raw: Cow<'a, str>
+    pub raw: Cow<'a, str>,
 }
 
 impl<'a> Key<'a> {
@@ -160,7 +160,7 @@ impl<'a> Key<'a> {
         }
     }
 
-    /// Return the delimiter used by the given `KeyType'.
+    /// Returns the delimiter used by the given `KeyType'.
     pub fn delimiter(&self) -> &'static str {
         match self.t {
             KeyType::Bare => "",
@@ -273,19 +273,22 @@ pub enum Item<'a> {
         trivia: Trivia<'a>,
     },
     /// An AoT literal.
-    AoT (Vec<Vec<Item<'a>>>),
+    AoT(Vec<Vec<Item<'a>>>),
     /// A null item.
-    #[doc(hidden)]    
+    #[doc(hidden)]
     None,
     /// A reference to a segment of an aot earlier in the document
     #[doc(hidden)]
-    // @cleanup: key should not be a string (?). Also document this better
-    AoTSegment { key: String, segment: usize, payload: Option<Vec<Item<'a>>>},
+    AoTSegment {
+        key: Key<'a>,
+        segment: usize,
+        payload: Option<Vec<Item<'a>>>,
+    },
 }
 
 impl<'a> Item<'a> {
-    /// Returns the discrimeinant--a unique integer that represents the type
-    /// of the `Item`. This is used for easy comparisions of item types.
+    /// Returns the discriminant--a unique integer that represents the type
+    /// of the `Item`. This is used for easy comparisons of item types.
     pub fn discriminant(&self) -> i32 {
         use self::Item::*;
         match *self {
@@ -299,15 +302,15 @@ impl<'a> Item<'a> {
             Table { .. } => 7,
             InlineTable { .. } => 8,
             Str { .. } => 9,
-            AoT (_) => 10,
+            AoT(_) => 10,
             None => 11,
-            AoTSegment{ .. } => 12
+            AoTSegment { .. } => 12,
         }
     }
 
     pub(crate) fn extend_aot(&mut self, v: Vec<Item<'a>>) -> Result<()> {
         match *self {
-            Item::AoT (ref mut val) => {
+            Item::AoT(ref mut val) => {
                 val.push(v);
             }
             _ => {
@@ -340,9 +343,7 @@ impl<'a> Item<'a> {
 
     pub(crate) fn segment(&self, idx: usize) -> &[Item<'a>] {
         match *self {
-            Item::AoT(ref val) => {
-                &val[idx]
-            }
+            Item::AoT(ref val) => &val[idx],
             _ => {
                 println!("{:?}, INDEX: {}", self, idx);
                 panic!("Invariant violated: called `segment()` on non-AoT value")
@@ -394,7 +395,7 @@ impl<'a> Item<'a> {
                 ref original,
                 ..
             } => format!("{}{}{}", t.delimiter(), original, t.delimiter()),
-            AoT (ref val) => {
+            AoT(ref val) => {
                 let mut b = String::new();
                 for table in &val[0] {
                     b.push_str(&table.as_string());
@@ -402,7 +403,7 @@ impl<'a> Item<'a> {
                 b
             }
             None => "".to_string(),
-            _ => panic!("Called as_string() on AoTSegment variant.")
+            _ => panic!("Called as_string() on AoTSegment variant."),
         }
     }
 
@@ -410,7 +411,11 @@ impl<'a> Item<'a> {
     pub fn trivia(&self) -> &Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT { .. } |  AoTSegment{..} | None => {
+            WS(_) |
+            Comment(_) |
+            AoT { .. } |
+            AoTSegment { .. } |
+            None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
@@ -429,7 +434,11 @@ impl<'a> Item<'a> {
     pub fn trivia_mut(&mut self) -> &mut Trivia<'a> {
         use self::Item::*;
         match *self {
-            WS(_) | Comment(_) | AoT { .. } | AoTSegment{..} | None => {
+            WS(_) |
+            Comment(_) |
+            AoT { .. } |
+            AoTSegment { .. } |
+            None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
