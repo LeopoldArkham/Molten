@@ -88,7 +88,7 @@ pub struct Trivia<'a> {
     /// Comment, starting with # character, or empty string if no comment.
     pub comment: &'a str,
     /// Trailing newline.
-    pub trail: &'a str,
+    pub trail: Cow<'a, str>,
 }
 
 impl<'a> Trivia<'a> {
@@ -98,7 +98,7 @@ impl<'a> Trivia<'a> {
             indent: "",
             comment_ws: "",
             comment: "",
-            trail: ::NL,
+            trail: ::NL.into(),
         }
     }
 }
@@ -412,13 +412,13 @@ impl<'a> Item<'a> {
         use self::Item::*;
         match *self {
             WS(_) |
-            Comment(_) |
             AoT { .. } |
             AoTSegment { .. } |
             None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
+            Comment(ref trivia) |
             Integer { ref trivia, .. } |
             Float { ref trivia, .. } |
             Bool { ref trivia, .. } |
@@ -435,13 +435,13 @@ impl<'a> Item<'a> {
         use self::Item::*;
         match *self {
             WS(_) |
-            Comment(_) |
             AoT { .. } |
             AoTSegment { .. } |
             None => {
                 println!("{:?}", self);
                 panic!("Called trivia on non-value Item variant");
             }
+            Comment(ref mut trivia) |
             Integer { ref mut trivia, .. } |
             Float { ref mut trivia, .. } |
             Bool { ref mut trivia, .. } |

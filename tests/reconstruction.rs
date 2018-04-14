@@ -242,7 +242,7 @@ mod constructors {
         let mut container = TOMLDocument::new();
 
         let mut trivia = Trivia::new();
-        trivia.trail = concat!("  ", nl!());
+        trivia.trail = concat!("  ", nl!()).into();
         let key = Key::new("bool");
         let value = Item::Bool {
             val: true,
@@ -252,7 +252,7 @@ mod constructors {
 
         let mut trivia = Trivia::new();
         trivia.indent = "\t";
-        trivia.trail = concat!("\t", nl!());
+        trivia.trail = concat!("\t", nl!()).into();
         let key = Key::new("string");
         let value = Item::Str {
             t: StringType::SLB,

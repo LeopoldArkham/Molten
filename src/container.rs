@@ -1,7 +1,6 @@
 //! Container to hold items within a `TOMLDocument`.
 
 use std::collections::HashMap;
-use std::borrow::Cow;
 
 use items::*;
 use errors::*;
@@ -22,6 +21,18 @@ impl<'a> Container<'a> {
         }
     }
 
+    /// API method, checks if a newline needs to be inserted after the last item, inserts it if necessary,
+    /// then calls the regular `append` method.
+    pub fn append_nl_check<K: Into<Option<Key<'a>>>>(&mut self, _key: K, mut item: Item<'a>) -> Result<()> {
+        if let Some(kv) = self.body.last_mut() {
+            if kv.1.has_trivia() && !kv.1.trivia().trail.ends_with(::NL) {
+                kv.1.trivia_mut().trail = format!("{}{}", kv.1.trivia_mut().trail, ::NL).into();
+            }
+        }
+
+        self.append(_key, item)
+    }
+
     /// Adds a (key, item) pair to the container.
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, _key: K, mut item: Item<'a>) -> Result<()> {
         let key = _key.into();
@@ -30,13 +41,11 @@ impl<'a> Container<'a> {
             if self.map.contains_key(&k) {
                 match item {
                     Item::AoTSegment { ref mut payload, .. } => {
-                        println!("Adding AoT segment to container");
                         segment = true;
                         let idx = self.map[&k];
                         self.body[idx].1.extend_aot(payload.take().unwrap())?;
                     }
                     _ => {
-                        println!("Not AoTSegment");
                         bail!(ErrorKind::DuplicateKey(k.key.into()));
                     }
                 }

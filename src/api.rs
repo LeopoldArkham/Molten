@@ -98,7 +98,7 @@ pub fn key_value<'a>(src: &'a str) -> Result<(Key<'a>, Item<'a>)> {
 //
 // Either way this puts "soft" requirements on the API that I don't like.
 
-/// Return a string `Item` parsed from the text `str`.
+/// Returns a string `Item` parsed from the text `str`.
 pub fn string<'a>(raw: &'a str) -> Result<Item<'a>> {
     let mut parser = ::parser::Parser::new(raw.as_ref());
     let value = parser.parse_value()?;
@@ -116,7 +116,7 @@ impl<'a> Item<'a> {
     pub fn append<K: Into<Option<Key<'a>>>>(&mut self, key: K, item: Item<'a>) -> Result<()> {
         use Item::*;
         match *self {
-            Table { ref mut val, .. } |
+            Table { ref mut val, .. } => val.append_nl_check(key, item),
             InlineTable { ref mut val, .. } => val.append(key, item),
             Array { .. } | AoT { .. } => unimplemented!(),
             _ => bail!(ErrorKind::APIWrongItem),
@@ -157,6 +157,14 @@ impl<'a> Item<'a> {
     }
 
     /// Returns true if Item is trivia.
+    pub fn has_trivia(&self) -> bool {
+        match self.discriminant() {
+            0 | 10 | 11 | 12 => false,
+            _ => true,
+        }
+    }
+
+    /// Returns true if Item has trivia.
     pub fn is_trivia(&self) -> bool {
         !self.is_value()
     }

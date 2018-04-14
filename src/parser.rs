@@ -31,7 +31,9 @@ pub struct Parser<'a> {
     marker: usize,
     /// A LIFO stack to keep track of the current AoT.
     AoT_stack: Vec<String>,
-    /// @doc
+    /// A map containing the keys of the AoTs encountered up to this point;
+    /// Its purpose is to determine whether the current AoT is a brand new one,
+    /// or if it is a reopening of an existing one.
     AoT_keys: HashMap<Cow<'a, str>, usize>,
 }
 
@@ -233,7 +235,7 @@ impl<'a> Parser<'a> {
                             indent: indent,
                             comment_ws: cws,
                             comment: comment,
-                            trail: trail,
+                            trail: trail.into(),
                         }),
                     )));
                 }
@@ -325,7 +327,7 @@ impl<'a> Parser<'a> {
             let meta = val.trivia_mut();
             meta.comment_ws = cws;
             meta.comment = comment;
-            meta.trail = trail;
+            meta.trail = trail.into();
         }
         val.trivia_mut().indent = indent;
 
@@ -380,7 +382,7 @@ impl<'a> Parser<'a> {
                                 indent: "",
                                 comment_ws: cws,
                                 comment: comment,
-                                trail: trail,
+                                trail: trail.into(),
                             })
                         }
                         _ => self.parse_value()?,
@@ -667,7 +669,7 @@ impl<'a> Parser<'a> {
             indent: indent,
             comment_ws: cws,
             comment: comment,
-            trail: trail,
+            trail: trail.into(),
         };
 
         let mut result = Item::None;
